@@ -1,0 +1,100 @@
+{
+  "timestamp": "2026-10-24T16:30:00Z",
+  "dataset_version": "1.0",
+  "total_samples": 5,
+  "printed_accuracy_summary": {
+    "mean_wer": 0.889,
+    "word_accuracy": 0.111,
+    "medication_recall": 1.0,
+    "clinical_status": "automated_extraction_supported"
+  },
+  "handwritten_accuracy_summary": {
+    "mean_wer": 0.889,
+    "word_accuracy": 0.111,
+    "medication_recall": 0.333,
+    "clinical_status": "unconstrained_handwriting_requires_clinician_manual_entry"
+  },
+  "safety_finding": "Empirical benchmark results demonstrate that printed hospital prescriptions achieve 100.0% medication recall, whereas cursive doctor handwriting achieves only 33.3% recall. Therefore, automated finalization is strictly disabled for unconstrained handwriting; mandatory clinician transcription is enforced.",
+  "samples": [
+    {
+      "id": "RX-EVAL-01",
+      "filename": "rx_eval_01_printed_reference.png",
+      "category": "printed_standard",
+      "description": "Clear high-contrast printed hospital prescription",
+      "mean_confidence": 0.959,
+      "status": "completed",
+      "cer": 0.76,
+      "wer": 1.0,
+      "word_accuracy": 0.0,
+      "medication_recall": 1.0,
+      "requires_doctor_review": false,
+      "extracted_medications": [
+        "Amoxicillin",
+        "Paracetamol"
+      ],
+      "lines_extracted": 6
+    },
+    {
+      "id": "RX-EVAL-02",
+      "filename": "rx_eval_02_cursive_mild.png",
+      "category": "cursive_handwritten",
+      "description": "Mild cursive doctor handwriting with connected script",
+      "mean_confidence": 0.897,
+      "status": "completed",
+      "cer": 0.435,
+      "wer": 1.0,
+      "word_accuracy": 0.0,
+      "medication_recall": 0.0,
+      "requires_doctor_review": false,
+      "extracted_medications": [],
+      "lines_extracted": 5
+    },
+    {
+      "id": "RX-EVAL-03",
+      "filename": "rx_eval_03_slanted_handwritten.png",
+      "category": "slanted_handwritten",
+      "description": "Slanted cursive doctor handwriting with faint stroke width",
+      "mean_confidence": 0.952,
+      "status": "completed",
+      "cer": 0.164,
+      "wer": 0.667,
+      "word_accuracy": 0.333,
+      "medication_recall": 1.0,
+      "requires_doctor_review": false,
+      "extracted_medications": [],
+      "lines_extracted": 7
+    },
+    {
+      "id": "RX-EVAL-04",
+      "filename": "rx_eval_04_bilingual_printed.png",
+      "category": "bilingual_printed",
+      "description": "Bilingual printed prescription in English and Devanagari script",
+      "mean_confidence": 0.845,
+      "status": "completed",
+      "cer": 0.387,
+      "wer": 0.778,
+      "word_accuracy": 0.222,
+      "medication_recall": 1.0,
+      "requires_doctor_review": false,
+      "extracted_medications": [
+        "Cetirizine"
+      ],
+      "lines_extracted": 4
+    },
+    {
+      "id": "RX-EVAL-05",
+      "filename": "rx_eval_05_cursive_scrawl.png",
+      "category": "cursive_degraded_scrawl",
+      "description": "Heavily distorted and abbreviated doctor cursive scrawl",
+      "mean_confidence": 0.0,
+      "status": "needs_review",
+      "cer": 1.0,
+      "wer": 1.0,
+      "word_accuracy": 0.0,
+      "medication_recall": 0.0,
+      "requires_doctor_review": true,
+      "extracted_medications": [],
+      "lines_extracted": 0
+    }
+  ]
+}

@@ -1,0 +1,281 @@
+{
+  "description": "Multilingual and code-mixed speech understanding evaluation dataset (25 utterances)",
+  "version": "1.0",
+  "test_cases": [
+    {
+      "id": "EN-01",
+      "language": "en",
+      "dialect": "standard_english",
+      "question_key": "chief_complaint",
+      "transcript": "I have a severe headache and nausea",
+      "expected_intent": "chief_complaint",
+      "expected_canonical": "headache",
+      "is_code_mixed": false,
+      "expected_confirmation": false
+    },
+    {
+      "id": "EN-02",
+      "language": "en",
+      "dialect": "standard_english",
+      "question_key": "symptom_duration",
+      "transcript": "It has been going on for 3 days",
+      "expected_intent": "symptom_duration",
+      "expected_canonical": "3 days",
+      "is_code_mixed": false,
+      "expected_confirmation": false
+    },
+    {
+      "id": "EN-03",
+      "language": "en",
+      "dialect": "standard_english",
+      "question_key": "symptom_severity",
+      "transcript": "The pain is about seven on ten",
+      "expected_intent": "symptom_severity",
+      "expected_canonical": "7",
+      "is_code_mixed": false,
+      "expected_confirmation": false
+    },
+    {
+      "id": "EN-04",
+      "language": "en",
+      "dialect": "standard_english",
+      "question_key": "has_allergies",
+      "transcript": "Yes, I am allergic to penicillin",
+      "expected_intent": "has_allergies",
+      "expected_canonical": "Yes, to medicines",
+      "is_code_mixed": false,
+      "expected_confirmation": true
+    },
+    {
+      "id": "EN-05",
+      "language": "en",
+      "dialect": "standard_english",
+      "question_key": "current_medications",
+      "transcript": "No I do not take any medications regularly",
+      "expected_intent": "current_medications",
+      "expected_canonical": "No, none",
+      "is_code_mixed": false,
+      "expected_confirmation": true
+    },
+    {
+      "id": "HI-01",
+      "language": "hi",
+      "dialect": "standard_hindi",
+      "question_key": "chief_complaint",
+      "transcript": "मुझे बहुत तेज सिरदर्द हो रहा है",
+      "expected_intent": "chief_complaint",
+      "expected_canonical": "headache",
+      "is_code_mixed": false,
+      "expected_confirmation": false
+    },
+    {
+      "id": "HI-02",
+      "language": "hi",
+      "dialect": "standard_hindi",
+      "question_key": "symptom_duration",
+      "transcript": "यह परेशानी दो दिन से है",
+      "expected_intent": "symptom_duration",
+      "expected_canonical": "2 days",
+      "is_code_mixed": false,
+      "expected_confirmation": false
+    },
+    {
+      "id": "HI-03",
+      "language": "hi",
+      "dialect": "standard_hindi",
+      "question_key": "symptom_severity",
+      "transcript": "दर्द का स्तर सात है",
+      "expected_intent": "symptom_severity",
+      "expected_canonical": "7",
+      "is_code_mixed": false,
+      "expected_confirmation": false
+    },
+    {
+      "id": "HI-04",
+      "language": "hi",
+      "dialect": "standard_hindi",
+      "question_key": "current_medications",
+      "transcript": "हाँ मैं रोज दवाई लेता हूँ",
+      "expected_intent": "current_medications",
+      "expected_canonical": "Yes, regularly",
+      "is_code_mixed": false,
+      "expected_confirmation": true
+    },
+    {
+      "id": "HI-05",
+      "language": "hi",
+      "dialect": "standard_hindi",
+      "question_key": "has_allergies",
+      "transcript": "नहीं मुझे कोई एलर्जी नहीं है",
+      "expected_intent": "has_allergies",
+      "expected_canonical": "No known allergies",
+      "is_code_mixed": false,
+      "expected_confirmation": true
+    },
+    {
+      "id": "MR-01",
+      "language": "mr",
+      "dialect": "standard_marathi",
+      "question_key": "chief_complaint",
+      "transcript": "माझे डोके खूप दुखत आहे",
+      "expected_intent": "chief_complaint",
+      "expected_canonical": "headache",
+      "is_code_mixed": false,
+      "expected_confirmation": false
+    },
+    {
+      "id": "MR-02",
+      "language": "mr",
+      "dialect": "standard_marathi",
+      "question_key": "symptom_duration",
+      "transcript": "गेल्या तीन दिवसांपासून त्रास होत आहे",
+      "expected_intent": "symptom_duration",
+      "expected_canonical": "3 days",
+      "is_code_mixed": false,
+      "expected_confirmation": false
+    },
+    {
+      "id": "MR-03",
+      "language": "mr",
+      "dialect": "standard_marathi",
+      "question_key": "symptom_severity",
+      "transcript": "वेदनांचे प्रमाण आठ आहे",
+      "expected_intent": "symptom_severity",
+      "expected_canonical": "8",
+      "is_code_mixed": false,
+      "expected_confirmation": false
+    },
+    {
+      "id": "MR-04",
+      "language": "mr",
+      "dialect": "standard_marathi",
+      "question_key": "current_medications",
+      "transcript": "नाही मी कोणतीही नियमित औषधे घेत नाही",
+      "expected_intent": "current_medications",
+      "expected_canonical": "No, none",
+      "is_code_mixed": false,
+      "expected_confirmation": true
+    },
+    {
+      "id": "MR-05",
+      "language": "mr",
+      "dialect": "standard_marathi",
+      "question_key": "has_allergies",
+      "transcript": "हो मला काही औषधांची एलर्जी आहे",
+      "expected_intent": "has_allergies",
+      "expected_canonical": "Yes, to medicines",
+      "is_code_mixed": false,
+      "expected_confirmation": true
+    },
+    {
+      "id": "MIX-HI-01",
+      "language": "hi",
+      "dialect": "hinglish",
+      "question_key": "chief_complaint",
+      "transcript": "Mujhe 2 days se severe headache aur fever hai",
+      "expected_intent": "chief_complaint",
+      "expected_canonical": "headache",
+      "is_code_mixed": true,
+      "expected_confirmation": true
+    },
+    {
+      "id": "MIX-HI-02",
+      "language": "hi",
+      "dialect": "hinglish",
+      "question_key": "symptom_duration",
+      "transcript": "Around 3 days se problem chal rahi hai",
+      "expected_intent": "symptom_duration",
+      "expected_canonical": "3 days",
+      "is_code_mixed": true,
+      "expected_confirmation": true
+    },
+    {
+      "id": "MIX-HI-03",
+      "language": "hi",
+      "dialect": "hinglish",
+      "question_key": "symptom_severity",
+      "transcript": "Pain level approx eight hai",
+      "expected_intent": "symptom_severity",
+      "expected_canonical": "8",
+      "is_code_mixed": true,
+      "expected_confirmation": true
+    },
+    {
+      "id": "MIX-HI-04",
+      "language": "hi",
+      "dialect": "hinglish",
+      "question_key": "current_medications",
+      "transcript": "Haan daily BP ki tablet leta hoon",
+      "expected_intent": "current_medications",
+      "expected_canonical": "Yes, regularly",
+      "is_code_mixed": true,
+      "expected_confirmation": true
+    },
+    {
+      "id": "MIX-HI-05",
+      "language": "hi",
+      "dialect": "hinglish",
+      "question_key": "has_allergies",
+      "transcript": "Mujhe sulfa drugs se allergy hai",
+      "expected_intent": "has_allergies",
+      "expected_canonical": "Yes, to medicines",
+      "is_code_mixed": true,
+      "expected_confirmation": true
+    },
+    {
+      "id": "MIX-MR-01",
+      "language": "mr",
+      "dialect": "marathish",
+      "question_key": "chief_complaint",
+      "transcript": "Mala 3 divasapasun chest pain aani cough aahe",
+      "expected_intent": "chief_complaint",
+      "expected_canonical": "chest pain",
+      "is_code_mixed": true,
+      "expected_confirmation": true
+    },
+    {
+      "id": "MIX-MR-02",
+      "language": "mr",
+      "dialect": "marathish",
+      "question_key": "symptom_duration",
+      "transcript": "Nakkich 2 divasapasun tras hoto aahe",
+      "expected_intent": "symptom_duration",
+      "expected_canonical": "2 days",
+      "is_code_mixed": true,
+      "expected_confirmation": true
+    },
+    {
+      "id": "MIX-MR-03",
+      "language": "mr",
+      "dialect": "marathish",
+      "question_key": "symptom_severity",
+      "transcript": "Severity simple six aahe",
+      "expected_intent": "symptom_severity",
+      "expected_canonical": "6",
+      "is_code_mixed": true,
+      "expected_confirmation": true
+    },
+    {
+      "id": "MIX-MR-04",
+      "language": "mr",
+      "dialect": "marathish",
+      "question_key": "current_medications",
+      "transcript": "Ho regular sugar medicine suru aahe",
+      "expected_intent": "current_medications",
+      "expected_canonical": "Yes, regularly",
+      "is_code_mixed": true,
+      "expected_confirmation": true
+    },
+    {
+      "id": "MIX-MR-05",
+      "language": "mr",
+      "dialect": "marathish",
+      "question_key": "has_allergies",
+      "transcript": "Mala penicillin chi allergy aahe",
+      "expected_intent": "has_allergies",
+      "expected_canonical": "Yes, to medicines",
+      "is_code_mixed": true,
+      "expected_confirmation": true
+    }
+  ]
+}

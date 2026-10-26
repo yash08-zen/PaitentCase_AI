@@ -1,0 +1,91 @@
+/* pages/LoginPage.css */
+.login-root {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--c-bg);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Animated background blobs */
+.login-root::before {
+  content: '';
+  position: absolute;
+  width: 600px; height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(14,165,233,0.08) 0%, transparent 70%);
+  top: -200px; left: -200px;
+  pointer-events: none;
+}
+.login-root::after {
+  content: '';
+  position: absolute;
+  width: 500px; height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(99,102,241,0.07) 0%, transparent 70%);
+  bottom: -150px; right: -150px;
+  pointer-events: none;
+}
+
+.login-container {
+  width: 100%;
+  max-width: 440px;
+  padding: var(--sp-md);
+  z-index: 1;
+  animation: fadeIn var(--t-slow) var(--ease) both;
+}
+
+.login-brand {
+  text-align: center;
+  margin-bottom: var(--sp-xl);
+}
+.login-logo {
+  width: 56px; height: 56px;
+  background: linear-gradient(135deg, var(--c-primary), var(--c-accent));
+  border-radius: var(--r-lg);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.6rem;
+  margin: 0 auto var(--sp-md);
+  box-shadow: 0 8px 32px rgba(14,165,233,0.4);
+}
+.login-title { font-size: 1.6rem; margin-bottom: 6px; }
+.login-subtitle { color: var(--c-text-muted); font-size: 0.9rem; }
+
+.login-card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-xl);
+  padding: var(--sp-xl);
+  box-shadow: var(--shadow-lg);
+}
+
+.login-form { display: flex; flex-direction: column; gap: var(--sp-md); }
+
+.login-notice {
+  margin-top: var(--sp-xl);
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--c-text-dim);
+  padding: var(--sp-md);
+  border: 1px solid var(--c-border-subtle);
+  border-radius: var(--r-md);
+  line-height: 1.6;
+}
+
+.demo-creds {
+  margin-top: var(--sp-md);
+  padding: var(--sp-md);
+  background: var(--c-surface-2);
+  border-radius: var(--r-md);
+  font-size: 0.8rem;
+  color: var(--c-text-muted);
+}
+.demo-creds code {
+  color: var(--c-primary);
+  background: var(--c-primary-glow);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.78rem;
+}

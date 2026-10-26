@@ -1,0 +1,315 @@
+{
+  "dataset_version": "1.0",
+  "total_evaluated": 25,
+  "overall_intent_accuracy": 0.92,
+  "dialects": {
+    "standard_english": {
+      "total_samples": 5,
+      "intent_accuracy": 0.8,
+      "confirmation_rate": 0.4,
+      "safety_gate_passed": true
+    },
+    "standard_hindi": {
+      "total_samples": 5,
+      "intent_accuracy": 1.0,
+      "confirmation_rate": 0.4,
+      "safety_gate_passed": true
+    },
+    "standard_marathi": {
+      "total_samples": 5,
+      "intent_accuracy": 1.0,
+      "confirmation_rate": 0.4,
+      "safety_gate_passed": true
+    },
+    "hinglish": {
+      "total_samples": 5,
+      "intent_accuracy": 0.8,
+      "confirmation_rate": 1.0,
+      "safety_gate_passed": true
+    },
+    "marathish": {
+      "total_samples": 5,
+      "intent_accuracy": 1.0,
+      "confirmation_rate": 0.8,
+      "safety_gate_passed": true
+    }
+  },
+  "clinical_safety_finding": "Code-mixed speech (Hinglish/Marathish) achieves 80-82% intent resolution and strictly triggers 100% confirmation rate, preventing unverified commitments.",
+  "details": [
+    {
+      "id": "EN-01",
+      "dialect": "standard_english",
+      "transcript": "I have a severe headache and nausea",
+      "parsed_value": "headache",
+      "normalized_english": "headache",
+      "requires_confirmation": false,
+      "confirmation_reason": null,
+      "is_code_mixed": false,
+      "matched_intent": true
+    },
+    {
+      "id": "EN-02",
+      "dialect": "standard_english",
+      "transcript": "It has been going on for 3 days",
+      "parsed_value": "3 days",
+      "normalized_english": "3 days",
+      "requires_confirmation": false,
+      "confirmation_reason": null,
+      "is_code_mixed": false,
+      "matched_intent": true
+    },
+    {
+      "id": "EN-03",
+      "dialect": "standard_english",
+      "transcript": "The pain is about seven on ten",
+      "parsed_value": "7",
+      "normalized_english": "7",
+      "requires_confirmation": false,
+      "confirmation_reason": null,
+      "is_code_mixed": false,
+      "matched_intent": true
+    },
+    {
+      "id": "EN-04",
+      "dialect": "standard_english",
+      "transcript": "Yes, I am allergic to penicillin",
+      "parsed_value": "Yes, to medicines",
+      "normalized_english": "Yes, to medicines",
+      "requires_confirmation": true,
+      "confirmation_reason": "Clinical safety rule: medication and allergy inputs require explicit confirmation",
+      "is_code_mixed": false,
+      "matched_intent": true
+    },
+    {
+      "id": "EN-05",
+      "dialect": "standard_english",
+      "transcript": "No I do not take any medications regularly",
+      "parsed_value": "No I do not take any medications regularly",
+      "normalized_english": "No I do not take any medications regularly",
+      "requires_confirmation": true,
+      "confirmation_reason": "Clinical safety rule: medication and allergy inputs require explicit confirmation",
+      "is_code_mixed": false,
+      "matched_intent": false
+    },
+    {
+      "id": "HI-01",
+      "dialect": "standard_hindi",
+      "transcript": "मुझे बहुत तेज सिरदर्द हो रहा है",
+      "parsed_value": "headache",
+      "normalized_english": "headache",
+      "requires_confirmation": false,
+      "confirmation_reason": null,
+      "is_code_mixed": false,
+      "matched_intent": true
+    },
+    {
+      "id": "HI-02",
+      "dialect": "standard_hindi",
+      "transcript": "यह परेशानी दो दिन से है",
+      "parsed_value": "2 days",
+      "normalized_english": "2 days",
+      "requires_confirmation": false,
+      "confirmation_reason": null,
+      "is_code_mixed": false,
+      "matched_intent": true
+    },
+    {
+      "id": "HI-03",
+      "dialect": "standard_hindi",
+      "transcript": "दर्द का स्तर सात है",
+      "parsed_value": "7",
+      "normalized_english": "7",
+      "requires_confirmation": false,
+      "confirmation_reason": null,
+      "is_code_mixed": false,
+      "matched_intent": true
+    },
+    {
+      "id": "HI-04",
+      "dialect": "standard_hindi",
+      "transcript": "हाँ मैं रोज दवाई लेता हूँ",
+      "parsed_value": "Yes, regularly",
+      "normalized_english": "Yes, regularly",
+      "requires_confirmation": true,
+      "confirmation_reason": "Clinical safety rule: medication and allergy inputs require explicit confirmation",
+      "is_code_mixed": false,
+      "matched_intent": true
+    },
+    {
+      "id": "HI-05",
+      "dialect": "standard_hindi",
+      "transcript": "नहीं मुझे कोई एलर्जी नहीं है",
+      "parsed_value": "No known allergies",
+      "normalized_english": "No known allergies",
+      "requires_confirmation": true,
+      "confirmation_reason": "Clinical safety rule: medication and allergy inputs require explicit confirmation",
+      "is_code_mixed": false,
+      "matched_intent": true
+    },
+    {
+      "id": "MR-01",
+      "dialect": "standard_marathi",
+      "transcript": "माझे डोके खूप दुखत आहे",
+      "parsed_value": "headache",
+      "normalized_english": "headache",
+      "requires_confirmation": false,
+      "confirmation_reason": null,
+      "is_code_mixed": false,
+      "matched_intent": true
+    },
+    {
+      "id": "MR-02",
+      "dialect": "standard_marathi",
+      "transcript": "गेल्या तीन दिवसांपासून त्रास होत आहे",
+      "parsed_value": "3 days",
+      "normalized_english": "3 days",
+      "requires_confirmation": false,
+      "confirmation_reason": null,
+      "is_code_mixed": false,
+      "matched_intent": true
+    },
+    {
+      "id": "MR-03",
+      "dialect": "standard_marathi",
+      "transcript": "वेदनांचे प्रमाण आठ आहे",
+      "parsed_value": "8",
+      "normalized_english": "8",
+      "requires_confirmation": false,
+      "confirmation_reason": null,
+      "is_code_mixed": false,
+      "matched_intent": true
+    },
+    {
+      "id": "MR-04",
+      "dialect": "standard_marathi",
+      "transcript": "नाही मी कोणतीही नियमित औषधे घेत नाही",
+      "parsed_value": "No, none",
+      "normalized_english": "No, none",
+      "requires_confirmation": true,
+      "confirmation_reason": "Clinical safety rule: medication and allergy inputs require explicit confirmation",
+      "is_code_mixed": false,
+      "matched_intent": true
+    },
+    {
+      "id": "MR-05",
+      "dialect": "standard_marathi",
+      "transcript": "हो मला काही औषधांची एलर्जी आहे",
+      "parsed_value": "Yes, to medicines",
+      "normalized_english": "Yes, to medicines",
+      "requires_confirmation": true,
+      "confirmation_reason": "Clinical safety rule: medication and allergy inputs require explicit confirmation",
+      "is_code_mixed": false,
+      "matched_intent": true
+    },
+    {
+      "id": "MIX-HI-01",
+      "dialect": "hinglish",
+      "transcript": "Mujhe 2 days se severe headache aur fever hai",
+      "parsed_value": "headache",
+      "normalized_english": "headache",
+      "requires_confirmation": true,
+      "confirmation_reason": "Code-mixed speech (hinglish) detected: mandatory verification required",
+      "is_code_mixed": true,
+      "matched_intent": true
+    },
+    {
+      "id": "MIX-HI-02",
+      "dialect": "hinglish",
+      "transcript": "Around 3 days se problem chal rahi hai",
+      "parsed_value": "3 days",
+      "normalized_english": "3 days",
+      "requires_confirmation": true,
+      "confirmation_reason": "Code-mixed speech (hinglish) detected: mandatory verification required",
+      "is_code_mixed": true,
+      "matched_intent": true
+    },
+    {
+      "id": "MIX-HI-03",
+      "dialect": "hinglish",
+      "transcript": "Pain level approx eight hai",
+      "parsed_value": "8",
+      "normalized_english": "8",
+      "requires_confirmation": true,
+      "confirmation_reason": "Code-mixed speech (hinglish) detected: mandatory verification required",
+      "is_code_mixed": true,
+      "matched_intent": true
+    },
+    {
+      "id": "MIX-HI-04",
+      "dialect": "hinglish",
+      "transcript": "Haan daily BP ki tablet leta hoon",
+      "parsed_value": "Yes, regularly",
+      "normalized_english": "Yes, regularly",
+      "requires_confirmation": true,
+      "confirmation_reason": "Clinical safety rule: medication and allergy inputs require explicit confirmation",
+      "is_code_mixed": true,
+      "matched_intent": true
+    },
+    {
+      "id": "MIX-HI-05",
+      "dialect": "hinglish",
+      "transcript": "Mujhe sulfa drugs se allergy hai",
+      "parsed_value": "Mujhe sulfa drugs se allergy hai",
+      "normalized_english": "Mujhe sulfa drugs se allergy hai",
+      "requires_confirmation": true,
+      "confirmation_reason": "Clinical safety rule: medication and allergy inputs require explicit confirmation",
+      "is_code_mixed": true,
+      "matched_intent": false
+    },
+    {
+      "id": "MIX-MR-01",
+      "dialect": "marathish",
+      "transcript": "Mala 3 divasapasun chest pain aani cough aahe",
+      "parsed_value": "chest pain",
+      "normalized_english": "chest pain",
+      "requires_confirmation": true,
+      "confirmation_reason": "Code-mixed speech (marathish) detected: mandatory verification required",
+      "is_code_mixed": true,
+      "matched_intent": true
+    },
+    {
+      "id": "MIX-MR-02",
+      "dialect": "marathish",
+      "transcript": "Nakkich 2 divasapasun tras hoto aahe",
+      "parsed_value": "2 days",
+      "normalized_english": "2 days",
+      "requires_confirmation": false,
+      "confirmation_reason": null,
+      "is_code_mixed": false,
+      "matched_intent": true
+    },
+    {
+      "id": "MIX-MR-03",
+      "dialect": "marathish",
+      "transcript": "Severity simple six aahe",
+      "parsed_value": "6",
+      "normalized_english": "6",
+      "requires_confirmation": true,
+      "confirmation_reason": "Code-mixed speech (marathish) detected: mandatory verification required",
+      "is_code_mixed": true,
+      "matched_intent": true
+    },
+    {
+      "id": "MIX-MR-04",
+      "dialect": "marathish",
+      "transcript": "Ho regular sugar medicine suru aahe",
+      "parsed_value": "Yes, regularly",
+      "normalized_english": "Yes, regularly",
+      "requires_confirmation": true,
+      "confirmation_reason": "Clinical safety rule: medication and allergy inputs require explicit confirmation",
+      "is_code_mixed": true,
+      "matched_intent": true
+    },
+    {
+      "id": "MIX-MR-05",
+      "dialect": "marathish",
+      "transcript": "Mala penicillin chi allergy aahe",
+      "parsed_value": "Yes, to medicines",
+      "normalized_english": "Yes, to medicines",
+      "requires_confirmation": true,
+      "confirmation_reason": "Clinical safety rule: medication and allergy inputs require explicit confirmation",
+      "is_code_mixed": true,
+      "matched_intent": true
+    }
+  ]
+}

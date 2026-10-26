@@ -1,0 +1,600 @@
+[
+  {
+    "id": 1,
+    "key": "chief_complaint",
+    "label": "Chief complaint",
+    "section": "Symptoms",
+    "group": "symptoms",
+    "order": 1,
+    "text": "What is troubling you the most today?",
+    "placeholder": "Select or type your primary symptom",
+    "help": "Choose the closest match or select Other to describe your symptom.",
+    "answer_type": "choice",
+    "choices": [
+      "Headache",
+      "Abdominal pain",
+      "Chest discomfort",
+      "Fever",
+      "Cough",
+      "Back pain",
+      "Other"
+    ],
+    "is_required": true,
+    "branching_rules": null,
+    "conditions": null,
+    "because": null,
+    "skip_why": null
+  },
+  {
+    "id": 2,
+    "key": "symptom_duration",
+    "label": "Duration",
+    "section": "Symptoms",
+    "group": "symptoms",
+    "order": 2,
+    "text": "How long have you had this problem?",
+    "placeholder": null,
+    "help": "Approximate duration helps determine acute vs chronic presentation.",
+    "answer_type": "choice",
+    "choices": [
+      "Less than a day",
+      "1 to 3 days",
+      "4 to 7 days",
+      "More than a week",
+      "Months or longer"
+    ],
+    "is_required": true,
+    "branching_rules": null,
+    "conditions": null,
+    "because": null,
+    "skip_why": null
+  },
+  {
+    "id": 3,
+    "key": "symptom_severity",
+    "label": "Severity (1 to 10)",
+    "section": "Symptoms",
+    "group": "symptoms",
+    "order": 3,
+    "text": "How severe is your discomfort right now?",
+    "placeholder": null,
+    "help": "1 is very mild, 10 is the worst pain imaginable.",
+    "answer_type": "scale",
+    "choices": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10"
+    ],
+    "is_required": false,
+    "branching_rules": null,
+    "conditions": null,
+    "because": null,
+    "skip_why": null
+  },
+  {
+    "id": 4,
+    "key": "pain_location",
+    "label": "Pain location",
+    "section": "Symptoms",
+    "group": "symptoms",
+    "order": 4,
+    "text": "Where exactly is the pain or discomfort located?",
+    "placeholder": "e.g., Upper abdomen, Left chest, Forehead",
+    "help": "Specific anatomical location provides key clinical context.",
+    "answer_type": "choice",
+    "choices": [
+      "Upper abdomen",
+      "Lower right abdomen",
+      "Lower left abdomen",
+      "Around the navel",
+      "Left chest",
+      "Center chest",
+      "Forehead / temples",
+      "Entire head",
+      "Lower back",
+      "Other location"
+    ],
+    "is_required": false,
+    "branching_rules": {
+      "show_if": {
+        "question_key": "chief_complaint",
+        "in": [
+          "Abdominal pain",
+          "Chest discomfort",
+          "Headache",
+          "Back pain"
+        ]
+      }
+    },
+    "conditions": [
+      {
+        "question_key": "chief_complaint",
+        "answer_contains": "pain"
+      },
+      {
+        "question_key": "chief_complaint",
+        "answer_contains": "discomfort"
+      },
+      {
+        "question_key": "chief_complaint",
+        "answer_contains": "headache"
+      }
+    ],
+    "because": "You reported pain or physical discomfort",
+    "skip_why": "Only asked for pain or discomfort complaints"
+  },
+  {
+    "id": 5,
+    "key": "worse_with_activity",
+    "label": "Worse with activity",
+    "section": "Symptoms",
+    "group": "symptoms",
+    "order": 5,
+    "text": "Does the discomfort increase with physical exertion or activity?",
+    "placeholder": null,
+    "help": "Evaluates exertional exacerbation for chest or musculoskeletal symptoms.",
+    "answer_type": "choice",
+    "choices": [
+      "Yes",
+      "No",
+      "Not sure"
+    ],
+    "is_required": false,
+    "branching_rules": {
+      "show_if": {
+        "question_key": "chief_complaint",
+        "in": [
+          "Chest discomfort",
+          "Back pain"
+        ]
+      }
+    },
+    "conditions": [
+      {
+        "question_key": "chief_complaint",
+        "answer_contains": "chest"
+      },
+      {
+        "question_key": "chief_complaint",
+        "answer_contains": "back"
+      }
+    ],
+    "because": "You reported chest discomfort or physical strain",
+    "skip_why": "Only asked for chest discomfort or physical strain"
+  },
+  {
+    "id": 6,
+    "key": "symptom_frequency",
+    "label": "Frequency",
+    "section": "Symptoms",
+    "group": "symptoms",
+    "order": 6,
+    "text": "How frequently do you experience this symptom?",
+    "placeholder": null,
+    "help": "Temporal pattern helps distinguish episodic vs continuous issues.",
+    "answer_type": "choice",
+    "choices": [
+      "Constant",
+      "Daily episodes",
+      "A few times a week",
+      "Intermittent / Occasional"
+    ],
+    "is_required": false,
+    "branching_rules": {
+      "show_if": {
+        "question_key": "chief_complaint",
+        "in": [
+          "Headache",
+          "Abdominal pain",
+          "Cough"
+        ]
+      }
+    },
+    "conditions": [
+      {
+        "question_key": "chief_complaint",
+        "answer_contains": "headache"
+      },
+      {
+        "question_key": "chief_complaint",
+        "answer_contains": "abdominal"
+      },
+      {
+        "question_key": "chief_complaint",
+        "answer_contains": "cough"
+      }
+    ],
+    "because": "Important for evaluating recurring episodic complaints",
+    "skip_why": "Only evaluated for recurring complaints"
+  },
+  {
+    "id": 7,
+    "key": "associated_symptoms",
+    "label": "Associated symptoms",
+    "section": "Symptoms",
+    "group": "symptoms",
+    "order": 7,
+    "text": "Do you have any of these additional symptoms along with it?",
+    "placeholder": null,
+    "help": "Select all that apply.",
+    "answer_type": "multi",
+    "choices": [
+      "Nausea",
+      "Dizziness",
+      "Shortness of breath",
+      "Sweating",
+      "Fever",
+      "Fatigue",
+      "None"
+    ],
+    "is_required": false,
+    "branching_rules": {
+      "show_if": {
+        "question_key": "chief_complaint",
+        "in": [
+          "Chest discomfort",
+          "Headache",
+          "Abdominal pain"
+        ]
+      }
+    },
+    "conditions": [
+      {
+        "question_key": "chief_complaint",
+        "answer_contains": "chest"
+      },
+      {
+        "question_key": "chief_complaint",
+        "answer_contains": "headache"
+      },
+      {
+        "question_key": "chief_complaint",
+        "answer_contains": "abdominal"
+      }
+    ],
+    "because": "Commonly associated with pain and systemic complaints",
+    "skip_why": "Not required for this complaint type"
+  },
+  {
+    "id": 8,
+    "key": "has_fever",
+    "label": "Fever status",
+    "section": "Symptoms",
+    "group": "symptoms",
+    "order": 8,
+    "text": "Have you had a fever or elevated body temperature?",
+    "placeholder": null,
+    "help": "Checks for secondary febrile response when fever is not chief complaint.",
+    "answer_type": "choice",
+    "choices": [
+      "Yes",
+      "No",
+      "Not measured"
+    ],
+    "is_required": false,
+    "branching_rules": {
+      "skip_if": {
+        "question_key": "chief_complaint",
+        "equals": "Fever"
+      }
+    },
+    "conditions": null,
+    "because": "Your primary complaint is not fever",
+    "skip_why": "Fever was already indicated as your primary complaint"
+  },
+  {
+    "id": 9,
+    "key": "has_chronic_conditions",
+    "label": "Chronic conditions",
+    "section": "Medical history",
+    "group": "history",
+    "order": 9,
+    "text": "Do you have any long-term or chronic medical conditions?",
+    "placeholder": null,
+    "help": "e.g., diabetes, hypertension, asthma, thyroid disorder",
+    "answer_type": "choice",
+    "choices": [
+      "Yes",
+      "No",
+      "Not sure"
+    ],
+    "is_required": true,
+    "branching_rules": null,
+    "conditions": null,
+    "because": null,
+    "skip_why": null
+  },
+  {
+    "id": 10,
+    "key": "chronic_conditions_detail",
+    "label": "Condition details",
+    "section": "Medical history",
+    "group": "history",
+    "order": 10,
+    "text": "Which chronic conditions have you been diagnosed with?",
+    "placeholder": null,
+    "help": "Select all that apply or mention others.",
+    "answer_type": "multi",
+    "choices": [
+      "Hypertension",
+      "Diabetes (Type 1 or 2)",
+      "Asthma / Respiratory",
+      "Thyroid disorder",
+      "Heart disease",
+      "Other"
+    ],
+    "is_required": false,
+    "branching_rules": {
+      "show_if": {
+        "question_key": "has_chronic_conditions",
+        "equals": "Yes"
+      }
+    },
+    "conditions": [
+      {
+        "question_key": "has_chronic_conditions",
+        "answer_contains": "yes"
+      }
+    ],
+    "because": "You reported having chronic medical conditions",
+    "skip_why": "You reported no chronic medical conditions"
+  },
+  {
+    "id": 11,
+    "key": "current_medications",
+    "label": "Current medications",
+    "section": "Medication",
+    "group": "medications",
+    "order": 11,
+    "text": "Are you currently taking any prescription medicines, supplements, or regular tablets?",
+    "placeholder": null,
+    "help": "Include regular prescription tablets, inhalers, insulin, or vitamins.",
+    "answer_type": "choice",
+    "choices": [
+      "Yes",
+      "No"
+    ],
+    "is_required": true,
+    "branching_rules": null,
+    "conditions": null,
+    "because": null,
+    "skip_why": null
+  },
+  {
+    "id": 12,
+    "key": "medication_details",
+    "label": "Medicine name(s)",
+    "section": "Medication",
+    "group": "medications",
+    "order": 12,
+    "text": "Which medicines are you taking?",
+    "placeholder": "e.g., Metformin, Amlodipine, Paracetamol",
+    "help": "If more than one, separate with commas.",
+    "answer_type": "text",
+    "choices": null,
+    "is_required": false,
+    "branching_rules": {
+      "show_if": {
+        "question_key": "current_medications",
+        "equals": "Yes"
+      }
+    },
+    "conditions": [
+      {
+        "question_key": "current_medications",
+        "answer_contains": "yes"
+      }
+    ],
+    "because": "You stated you are currently taking medications",
+    "skip_why": "You stated you take no medications"
+  },
+  {
+    "id": 13,
+    "key": "medication_dosage",
+    "label": "Dose and frequency",
+    "section": "Medication",
+    "group": "medications",
+    "order": 13,
+    "text": "What is the dose, and how often do you take it?",
+    "placeholder": "e.g., 500 mg, twice daily after meals",
+    "help": "Dose and schedule are crucial for medication reconciliation.",
+    "answer_type": "text",
+    "choices": null,
+    "is_required": false,
+    "branching_rules": {
+      "show_if": {
+        "question_key": "current_medications",
+        "equals": "Yes"
+      }
+    },
+    "conditions": [
+      {
+        "question_key": "current_medications",
+        "answer_contains": "yes"
+      }
+    ],
+    "because": "Helps clinical review and prescription cross-checking",
+    "skip_why": "You stated you take no medications"
+  },
+  {
+    "id": 14,
+    "key": "has_allergies",
+    "label": "Allergies",
+    "section": "Allergies",
+    "group": "allergies",
+    "order": 14,
+    "text": "Do you have any known allergies to medicines, food, or other substances?",
+    "placeholder": null,
+    "help": "Essential for patient safety during treatment planning.",
+    "answer_type": "choice",
+    "choices": [
+      "Yes",
+      "No",
+      "Not sure"
+    ],
+    "is_required": true,
+    "branching_rules": null,
+    "conditions": null,
+    "because": null,
+    "skip_why": null
+  },
+  {
+    "id": 15,
+    "key": "allergy_details",
+    "label": "Allergen(s)",
+    "section": "Allergies",
+    "group": "allergies",
+    "order": 15,
+    "text": "What substance or medicine are you allergic to?",
+    "placeholder": "e.g., Penicillin, Sulfa drugs, Peanuts, Aspirin",
+    "help": "Please name all substances you have reacted to.",
+    "answer_type": "text",
+    "choices": null,
+    "is_required": false,
+    "branching_rules": {
+      "show_if": {
+        "question_key": "has_allergies",
+        "equals": "Yes"
+      }
+    },
+    "conditions": [
+      {
+        "question_key": "has_allergies",
+        "answer_contains": "yes"
+      }
+    ],
+    "because": "You reported having allergies",
+    "skip_why": "You reported no known allergies"
+  },
+  {
+    "id": 16,
+    "key": "allergy_reaction",
+    "label": "Allergic reaction",
+    "section": "Allergies",
+    "group": "allergies",
+    "order": 16,
+    "text": "What happens when you are exposed to this allergen?",
+    "placeholder": null,
+    "help": "Select the reaction pattern.",
+    "answer_type": "choice",
+    "choices": [
+      "Skin rash / Hives",
+      "Facial or throat swelling",
+      "Breathing difficulty",
+      "Severe anaphylaxis",
+      "Stomach upset / vomiting",
+      "Not sure"
+    ],
+    "is_required": false,
+    "branching_rules": {
+      "show_if": {
+        "question_key": "has_allergies",
+        "equals": "Yes"
+      }
+    },
+    "conditions": [
+      {
+        "question_key": "has_allergies",
+        "answer_contains": "yes"
+      }
+    ],
+    "because": "Identifies severity of allergic responses",
+    "skip_why": "You reported no known allergies"
+  },
+  {
+    "id": 17,
+    "key": "previous_surgery",
+    "label": "Previous surgery",
+    "section": "Background",
+    "group": "history",
+    "order": 17,
+    "text": "Have you had any surgery or hospital admission before?",
+    "placeholder": null,
+    "help": "Includes major operations or inpatient stays.",
+    "answer_type": "choice",
+    "choices": [
+      "Yes",
+      "No"
+    ],
+    "is_required": false,
+    "branching_rules": null,
+    "conditions": null,
+    "because": null,
+    "skip_why": null
+  },
+  {
+    "id": 18,
+    "key": "surgery_details",
+    "label": "Surgery details",
+    "section": "Background",
+    "group": "history",
+    "order": 18,
+    "text": "What surgery did you have and in which year?",
+    "placeholder": "e.g., Appendectomy in 2019, Knee arthroscopy in 2022",
+    "help": "Approximate procedure and year.",
+    "answer_type": "text",
+    "choices": null,
+    "is_required": false,
+    "branching_rules": {
+      "show_if": {
+        "question_key": "previous_surgery",
+        "equals": "Yes"
+      }
+    },
+    "conditions": [
+      {
+        "question_key": "previous_surgery",
+        "answer_contains": "yes"
+      }
+    ],
+    "because": "You reported previous surgical history",
+    "skip_why": "You reported no previous surgery"
+  },
+  {
+    "id": 19,
+    "key": "family_history",
+    "label": "Family history",
+    "section": "Background",
+    "group": "history",
+    "order": 19,
+    "text": "Does anyone in your immediate family have heart disease, diabetes, or cancer?",
+    "placeholder": null,
+    "help": "Parents, siblings, or children.",
+    "answer_type": "choice",
+    "choices": [
+      "Yes",
+      "No",
+      "Not sure"
+    ],
+    "is_required": false,
+    "branching_rules": null,
+    "conditions": null,
+    "because": null,
+    "skip_why": null
+  },
+  {
+    "id": 20,
+    "key": "additional_information",
+    "label": "Additional info",
+    "section": "Background",
+    "group": "core",
+    "order": 20,
+    "text": "Is there anything else you would like the doctor to know about your health or this visit?",
+    "placeholder": "e.g., Other concerns, questions, or recent changes in your health",
+    "help": "Free-form notes shared directly with the clinician.",
+    "answer_type": "text",
+    "choices": null,
+    "is_required": false,
+    "branching_rules": null,
+    "conditions": null,
+    "because": null,
+    "skip_why": null
+  }
+]

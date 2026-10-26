@@ -1,0 +1,97 @@
+/* pages/InterviewPage.css */
+.interview-root {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--sp-xl) var(--sp-md);
+  animation: fadeIn var(--t-normal) var(--ease) both;
+}
+
+.interview-header {
+  margin-bottom: var(--sp-xl);
+}
+.interview-meta {
+  display: flex;
+  gap: var(--sp-md);
+  align-items: center;
+  margin-bottom: var(--sp-md);
+  flex-wrap: wrap;
+}
+.interview-progress-label {
+  font-size: 0.82rem;
+  color: var(--c-text-muted);
+  white-space: nowrap;
+}
+
+.interview-card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-xl);
+  padding: var(--sp-xl) var(--sp-2xl);
+  box-shadow: var(--shadow-md), var(--shadow-glow);
+  animation: fadeIn var(--t-normal) var(--ease) both;
+}
+@media (max-width: 600px) { .interview-card { padding: var(--sp-lg) var(--sp-md); } }
+
+.interview-group-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-primary);
+  margin-bottom: var(--sp-md);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.interview-group-tag::before {
+  content: '';
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--c-primary);
+}
+
+.interview-question {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--c-text);
+  margin-bottom: var(--sp-lg);
+  line-height: 1.45;
+}
+
+.interview-answer-area {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-md);
+}
+
+.interview-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--sp-xl);
+}
+
+.interview-complete {
+  text-align: center;
+  padding: var(--sp-2xl) var(--sp-xl);
+}
+.interview-complete-icon {
+  font-size: 4rem;
+  margin-bottom: var(--sp-lg);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.interview-saving-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--c-success);
+}
+.saving-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--c-success);
+  animation: pulse 1.5s ease-in-out infinite;
+}

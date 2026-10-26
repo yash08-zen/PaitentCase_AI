@@ -1,0 +1,71 @@
+{
+  "description": "Evaluation manifest for printed vs handwritten prescription OCR benchmark",
+  "version": "1.0",
+  "samples": [
+    {
+      "id": "RX-EVAL-01",
+      "filename": "rx_eval_01_printed_reference.png",
+      "category": "printed_standard",
+      "description": "Clear high-contrast printed hospital prescription",
+      "ground_truth_text": "CITY CLINIC HEALTHCARE\nRx:\n1. Amoxicillin 500mg capsules TID x 7 days\n2. Paracetamol 650mg tablets SOS x 3 days\nDr. R. Sharma, MD",
+      "expected_medications": [
+        {"name": "Amoxicillin", "dosage": "500mg"},
+        {"name": "Paracetamol", "dosage": "650mg"}
+      ],
+      "expected_confidence_min": 0.85,
+      "expected_status": "completed"
+    },
+    {
+      "id": "RX-EVAL-02",
+      "filename": "rx_eval_02_cursive_mild.png",
+      "category": "cursive_handwritten",
+      "description": "Mild cursive doctor handwriting with connected script",
+      "ground_truth_text": "City Clinic\nRx:\nMetformin 500mg BD\nGlimepiride 1mg OD\nDr. S. Kulkarni",
+      "expected_medications": [
+        {"name": "Metformin", "dosage": "500mg"},
+        {"name": "Glimepiride", "dosage": "1mg"}
+      ],
+      "expected_confidence_min": 0.30,
+      "expected_status": "needs_review"
+    },
+    {
+      "id": "RX-EVAL-03",
+      "filename": "rx_eval_03_slanted_handwritten.png",
+      "category": "slanted_handwritten",
+      "description": "Slanted cursive doctor handwriting with faint stroke width",
+      "ground_truth_text": "Care Hospital\nRx:\nAtorvastatin 20mg HS\nAspirin 75mg OD\nDr. P. Joshi",
+      "expected_medications": [
+        {"name": "Atorvastatin", "dosage": "20mg"},
+        {"name": "Aspirin", "dosage": "75mg"}
+      ],
+      "expected_confidence_min": 0.25,
+      "expected_status": "needs_review"
+    },
+    {
+      "id": "RX-EVAL-04",
+      "filename": "rx_eval_04_bilingual_printed.png",
+      "category": "bilingual_printed",
+      "description": "Bilingual printed prescription in English and Devanagari script",
+      "ground_truth_text": "आरोग्य केंद्र / Health Center\nRx:\nParacetamol 500mg / पैरासिटामोल 500mg BD\nCetirizine 10mg / सेटिरिज़िन 10mg OD",
+      "expected_medications": [
+        {"name": "Paracetamol", "dosage": "500mg"},
+        {"name": "Cetirizine", "dosage": "10mg"}
+      ],
+      "expected_confidence_min": 0.70,
+      "expected_status": "completed"
+    },
+    {
+      "id": "RX-EVAL-05",
+      "filename": "rx_eval_05_cursive_scrawl.png",
+      "category": "cursive_degraded_scrawl",
+      "description": "Heavily distorted and abbreviated doctor cursive scrawl",
+      "ground_truth_text": "Clinic Rx:\nAzithro 500 OD x 3d\nPanto 40 OD",
+      "expected_medications": [
+        {"name": "Azithromycin", "dosage": "500mg"},
+        {"name": "Pantoprazole", "dosage": "40mg"}
+      ],
+      "expected_confidence_min": 0.10,
+      "expected_status": "needs_review"
+    }
+  ]
+}

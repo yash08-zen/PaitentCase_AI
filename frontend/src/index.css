@@ -1,0 +1,13 @@
+:root{--g1:#B2E0B2;--g2:#8CCB8C;--g3:#5DAA5D;--g4:#3B8A3B;--g5:#2A6A2A;--ink:#14281a;--soft:#5f7262;--bg:#e6eee8;--shell:#f4f7f4;--card:#fff;--line:#e2e9e3;
+--amber:#8a5200;--amberbg:#fff3dc;--red:#a3321f;--redbg:#fdeeea;--blue:#1f4e79;--bluebg:#e3edf8;--font:"Helvetica Neue",Helvetica,Arial,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--font)}
+h1,h2,h3,h4,p{margin:0}
+h1{font-size:clamp(1.6rem,3vw,2rem);font-weight:700;letter-spacing:-.02em;line-height:1.15}
+h2{font-size:1.1rem;font-weight:700}
+h3{font-size:.95rem;font-weight:700}
+button{font:inherit;cursor:pointer}
+input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--g4);outline-offset:2px}
+.soft{color:var(--soft)}.small{font-size:.85rem}.light{font-weight:300}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}

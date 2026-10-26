@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.so
+venv/
+.venv/
+.venv*/
+env/
+*.egg-info/
+build/
+
+# Node
+node_modules/
+dist/
+.cache/
+
+# Environment files (NEVER commit real secrets)
+.env
+.env.*
+!.env.example
+backend/.env
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# SQLite Database
+*.db
+*.db-shm
+*.db-wal
+backend/*.db
+backend/*.db-shm
+backend/*.db-wal
+
+# Uploads and temporary test outputs
+uploads/
+test_uploads/
+backend/uploads/
+backend/test_uploads/
+
+# IDE / OS
+.vscode/*
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
