@@ -11,6 +11,7 @@ import DoctorReview from "./pages/DoctorReview";
 import AuditLog from "./pages/AuditLog";
 import PatientPortal from "./pages/PatientPortal";
 import apiClient from "./api/client";
+import { PageErrorBoundary } from "./components/ui";
 
 const PAGES = {
   dashboard: Dashboard,
@@ -97,10 +98,14 @@ export default function App() {
   const Page = PAGES[page] || Dashboard;
 
   return (
-    <StoreProvider>
+    // Re-mount the store per session so each login loads its own backend data
+    // and nothing from the previous user leaks into the next one.
+    <StoreProvider key={user ? `${user.role}:${user.username}` : "anonymous"}>
       {user ? (
         <Shell user={user} page={page} go={go} onLogout={handleLogout}>
-          <Page go={go} user={user} />
+          <PageErrorBoundary key={page}>
+            <Page go={go} user={user} />
+          </PageErrorBoundary>
         </Shell>
       ) : (
         <Login onLogin={handleLogin} sessionMessage={sessionMessage} />

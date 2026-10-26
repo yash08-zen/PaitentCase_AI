@@ -6,6 +6,9 @@
  * Translates the entire user interface and adaptive clinical questions.
  */
 
+import { PAGE_TRANSLATIONS } from "./i18n_pages";
+import { INTAKE_TRANSLATIONS } from "./i18n_intake";
+
 export const LANGUAGES = [
   { code: "en", name: "English", native: "English", locale: "en-IN" },
   { code: "hi", name: "Hindi", native: "हिन्दी", locale: "hi-IN" },
@@ -463,6 +466,29 @@ export function t(key, lang = "en") {
   const normLang = (lang || "en").toLowerCase();
   const dict = UI_TRANSLATIONS[normLang] || UI_TRANSLATIONS.en;
   return dict[key] || UI_TRANSLATIONS.en[key] || key;
+}
+
+/**
+ * Fill {name}-style placeholders in an already translated string
+ */
+export function fmtT(str, vars = {}) {
+  return String(str).replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
+}
+
+/**
+ * Parse a backend timestamp. The API stores naive UTC datetimes, so a value
+ * without an explicit offset must be read as UTC, not local time.
+ */
+export function parseServerDate(ts) {
+  if (!ts) return null;
+  if (ts instanceof Date) return ts;
+  const s = String(ts);
+  return new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(s) || !s.includes("T") && !s.includes(" ") ? s : `${s.replace(" ", "T")}Z`);
+}
+
+// Merge page-level strings (clinician pages, intake pages, shared UI)
+for (const lang of Object.keys(UI_TRANSLATIONS)) {
+  UI_TRANSLATIONS[lang] = { ...PAGE_TRANSLATIONS[lang], ...INTAKE_TRANSLATIONS[lang], ...UI_TRANSLATIONS[lang] };
 }
 
 /**

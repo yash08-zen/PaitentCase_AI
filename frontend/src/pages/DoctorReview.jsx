@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { useStore } from "../state/store";
 import apiClient from "../api/client";
-import { Empty, Icon, Proto, Ring, Source, StatusTag, Tag, Spinner } from "../components/ui";
-
-const ST = { open: ["warn", "Open"], reviewed: ["doc", "Reviewed"], verified: ["ver", "Verified"] };
+import { Empty, Icon, Proto, Ring, Source, Tag, Spinner } from "../components/ui";
+import { fmtT } from "../utils/i18n";
 
 function ConflictCard({ f, onResolve }) {
+  const { t } = useStore();
   const [busy, setBusy] = useState(false);
   const isOpen = f.status === "open";
   const isResolved = f.status === "resolved";
@@ -25,13 +25,13 @@ function ConflictCard({ f, onResolve }) {
         <div className="chead">
           <Icon n="alert" />
           <h2 style={{ fontSize: "1.1rem", margin: 0 }}>
-            {f.rule_id ? `[${f.rule_id}] ${f.field}` : `Discrepancy: ${f.field}`}
+            {f.rule_id ? `[${f.rule_id}] ${f.field}` : `${t("discrepancy")}: ${f.field}`}
           </h2>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           {f.rule_id && <Tag kind="warn">{f.rule_id}</Tag>}
           <Tag kind={isOpen ? "warn" : isResolved ? "ver" : "sys"}>
-            {isOpen ? "Verification Required" : isResolved ? "Resolved" : "Dismissed"}
+            {isOpen ? t("verificationRequired") : isResolved ? t("resolved") : t("dismissed")}
           </Tag>
         </div>
       </div>
@@ -45,21 +45,21 @@ function ConflictCard({ f, onResolve }) {
       <div className="vs">
         <div className="src pat">
           <Source s={f.source_a || "patient_reported"} />
-          <p className="small soft">Patient testimony</p>
-          <b>"{f.value_a || 'None'}"</b>
+          <p className="small soft">{t("patientTestimony")}</p>
+          <b>"{f.value_a || t("none")}"</b>
         </div>
         <span className="vsmark">vs</span>
         <div className="src doc">
           <Source s={f.source_b || "document_extracted_unverified"} />
-          <p className="small soft">Document extraction</p>
-          <b>"{f.value_b || 'None'}"</b>
+          <p className="small soft">{t("documentExtraction")}</p>
+          <b>"{f.value_b || t("none")}"</b>
         </div>
       </div>
 
       {f.resolution_note && (
         <div style={{ marginTop: 10, padding: "8px 12px", background: "#f0f7f0", borderRadius: 8 }}>
           <span className="small">
-            <b>Clinician resolution:</b> {f.resolution_note}
+            <b>{t("clinicianResolution")}</b> {f.resolution_note}
           </span>
         </div>
       )}
@@ -72,14 +72,14 @@ function ConflictCard({ f, onResolve }) {
               disabled={busy}
               onClick={() => handleAction("resolved", "Verified with patient. Clinical record reconciled.")}
             >
-              {busy ? "Resolving..." : "Verified with patient"}
+              {busy ? t("resolving") : t("verifiedWithPatient")}
             </button>
             <button
               className="btn out sm"
               disabled={busy}
               onClick={() => handleAction("dismissed", "Discrepancy dismissed by clinician after inspection.")}
             >
-              Dismiss discrepancy
+              {t("dismissDiscrepancy")}
             </button>
           </>
         ) : (
@@ -88,7 +88,7 @@ function ConflictCard({ f, onResolve }) {
             disabled={busy}
             onClick={() => handleAction("open", "Discrepancy reopened for clinical review.")}
           >
-            Reopen discrepancy
+            {t("reopenDiscrepancy")}
           </button>
         )}
       </div>
@@ -97,7 +97,7 @@ function ConflictCard({ f, onResolve }) {
 }
 
 export default function DoctorReview({ go }) {
-  const { patients, cases, activeId, setNotes, finalize, notify } = useStore();
+  const { patients, cases, activeId, setNotes, finalize, notify, t } = useStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [encounterId, setEncounterId] = useState(null);
@@ -113,17 +113,26 @@ export default function DoctorReview({ go }) {
 
   const p = patients.find((x) => x.id === activeId);
   const c = cases[activeId];
+  const patientId = p?.id;
+  const patientBackendId = p?.backendId;
 
   const loadCaseData = useCallback(async () => {
-    if (!p) return;
+    if (!patientId) return;
     setLoading(true);
     setError(null);
+    setIsFinalized(false);
+    setFinalizedInfo(null);
+    setNotesText("");
+    setSummaryData(null);
+    setMissingData(null);
+    setReadinessData(null);
+    setConflictsData([]);
     try {
       let resolvedEncId = c?.encounterId;
-      if (!resolvedEncId && p.backendId) {
+      if (!resolvedEncId && patientBackendId) {
         const encList = await apiClient.get("/api/encounters");
         const match = Array.isArray(encList)
-          ? encList.find((e) => e.patient_id === p.backendId)
+          ? encList.find((e) => e.patient_id === patientBackendId)
           : null;
         resolvedEncId = match ? match.id : null;
       }
@@ -161,11 +170,11 @@ export default function DoctorReview({ go }) {
         if (c.finalized) setIsFinalized(true);
       }
     } catch (err) {
-      setError(err.message || "Failed to load case review data from backend");
+      setError(err.message || t("loadCaseFailed"));
     } finally {
       setLoading(false);
     }
-  }, [p, c?.encounterId, c?.notes, c?.finalized]);
+  }, [patientId, patientBackendId, c?.encounterId, c?.notes, c?.finalized, t]);
 
   useEffect(() => {
     loadCaseData();
@@ -174,26 +183,26 @@ export default function DoctorReview({ go }) {
   const handleResolveConflict = async (conflictId, status, note) => {
     try {
       await apiClient.resolveConflict(conflictId, { status, resolutionNote: note });
-      notify(status === "resolved" ? "Discrepancy reconciled and verified" : "Discrepancy status updated");
+      notify(status === "resolved" ? t("discrepancyReconciled") : t("discrepancyUpdated"));
       await loadCaseData();
     } catch (err) {
-      notify(err.message || "Failed to update discrepancy", true);
+      notify(err.message || t("discrepancyUpdateFailed"), "error");
     }
   };
 
   const handleSaveNotes = async () => {
     if (!encounterId) {
       setNotes(p.id, notesText);
-      notify("Notes saved locally");
+      notify(t("notesSavedLocally"));
       return;
     }
     setSavingNotes(true);
     try {
       await apiClient.saveDoctorNotes(encounterId, notesText);
       setNotes(p.id, notesText);
-      notify("Clinician review notes saved successfully");
+      notify(t("notesSaved"));
     } catch (err) {
-      notify(err.message || "Failed to save clinician notes", true);
+      notify(err.message || t("notesSaveFailed"), "error");
     } finally {
       setSavingNotes(false);
     }
@@ -203,7 +212,7 @@ export default function DoctorReview({ go }) {
     if (!encounterId) {
       finalize(p.id);
       setIsFinalized(true);
-      notify("Case finalized locally");
+      notify(t("finalizedLocally"));
       return;
     }
     setFinalizing(true);
@@ -215,10 +224,10 @@ export default function DoctorReview({ go }) {
         reviewed_at: res.reviewed_at,
         reviewed_by: res.reviewed_by,
       });
-      notify("Case finalized & review completed. Interview is locked.");
+      notify(t("finalizedOk"));
       await loadCaseData();
     } catch (err) {
-      notify(err.message || "Failed to finalize case", true);
+      notify(err.message || t("finalizeFailed"), "error");
     } finally {
       setFinalizing(false);
     }
@@ -227,11 +236,11 @@ export default function DoctorReview({ go }) {
   if (!p) {
     return (
       <Empty
-        title="No patient selected"
-        text="Choose a patient to review."
+        title={t("noPatientSelected")}
+        text={t("choosePatient")}
         action={
           <button className="btn primary" onClick={() => go("patients")}>
-            Open patient list
+            {t("openPatientList")}
           </button>
         }
       />
@@ -241,7 +250,7 @@ export default function DoctorReview({ go }) {
   if (loading) {
     return (
       <div style={{ padding: "60px 0", textAlign: "center" }}>
-        <Spinner text={`Loading clinical case summary for ${p.name}...`} />
+        <Spinner text={fmtT(t("loadingCaseFor"), { name: p.name })} />
       </div>
     );
   }
@@ -249,11 +258,11 @@ export default function DoctorReview({ go }) {
   if (error) {
     return (
       <Empty
-        title="Error loading case data"
+        title={t("errorLoadingCase")}
         text={error}
         action={
           <button className="btn primary" onClick={loadCaseData}>
-            Retry
+            {t("retry")}
           </button>
         }
       />
@@ -264,7 +273,7 @@ export default function DoctorReview({ go }) {
   const factors = readinessData?.factors || {};
   const missingFields = missingData?.missing_fields || [];
   const findingsList = summaryData?.structured_findings || [];
-  const summaryText = summaryData?.summary_text || "No summary text generated yet.";
+  const summaryText = summaryData?.summary_text || t("noSummaryYet");
 
   return (
     <>
@@ -272,17 +281,17 @@ export default function DoctorReview({ go }) {
         <div>
           <h1>{p.name}</h1>
           <p className="soft">
-            {p.age ? `${p.age} yrs` : "Age not provided"} • {p.gender || "Gender not provided"} •{" "}
-            {p.language || "English"} • Encounter #{encounterId || p.id} • Registered {p.registered}
+            {p.age ? `${p.age} ${t("yrs")}` : t("ageNotProvided")} • {p.gender || t("genderNotProvided")} •{" "}
+            {p.language || "English"} • {t("encounter")} #{encounterId || p.id} • {t("registeredOn")} {p.registered}
           </p>
         </div>
         <div className="actions">
           <Tag kind={readinessData?.label === "Ready for Review" ? "ok" : "warn"}>
-            {readinessData?.label || "Awaiting Review"}
+            {readinessData?.label || t("awaitingReview")}
           </Tag>
           {missingFields.length > 0 && (
             <Tag kind="bad">
-              {missingFields.length} missing field{missingFields.length > 1 ? "s" : ""}
+              {fmtT(t("nMissingFields"), { n: missingFields.length })}
             </Tag>
           )}
         </div>
@@ -294,11 +303,11 @@ export default function DoctorReview({ go }) {
           {conflictsData.length > 0 && (
             <div className="rvsec">
               <div className="row">
-                <h2>Cross-source discrepancies ({conflictsData.filter((x) => x.status === "open").length} open)</h2>
-                <Proto>Clinical discrepancy rules</Proto>
+                <h2>{fmtT(t("crossSourceDiscrepancies"), { n: conflictsData.filter((x) => x.status === "open").length })}</h2>
+                <Proto>{t("discrepancyRules")}</Proto>
               </div>
               <p className="small soft" style={{ margin: "-6px 0 12px" }}>
-                Patient statements compared with prescription documents. Discrepancies require doctor verification.
+                {t("discrepancyDesc")}
               </p>
               {conflictsData.map((f) => (
                 <ConflictCard
@@ -313,10 +322,10 @@ export default function DoctorReview({ go }) {
           {/* Backend Generated Case Summary */}
           <div className="card">
             <div className="row">
-              <h2>Case summary</h2>
+              <h2>{t("caseSummary")}</h2>
               <div className="actions">
                 <Source s="system" />
-                <Proto>Rule-based text, not a diagnosis</Proto>
+                <Proto>{t("notADiagnosis")}</Proto>
               </div>
             </div>
             <pre
@@ -339,19 +348,19 @@ export default function DoctorReview({ go }) {
           {/* Structured Findings Table with Source Provenance */}
           <div className="card">
             <div className="row">
-              <h2>Structured findings</h2>
-              <Proto>Explicit Provenance</Proto>
+              <h2>{t("structuredFindings")}</h2>
+              <Proto>{t("explicitProvenance")}</Proto>
             </div>
             <p className="small soft">
-              Every value is traced to its origin (patient reported, document extracted, or missing).
+              {t("findingsDesc")}
             </p>
             <div className="scroll">
               <table className="mt" style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ textAlign: "left", borderBottom: "2px solid #e5e7eb" }}>
-                    <th style={{ padding: "8px 12px" }}>Item</th>
-                    <th style={{ padding: "8px 12px" }}>Value</th>
-                    <th style={{ padding: "8px 12px" }}>Source Provenance</th>
+                    <th style={{ padding: "8px 12px" }}>{t("colItem")}</th>
+                    <th style={{ padding: "8px 12px" }}>{t("colValue")}</th>
+                    <th style={{ padding: "8px 12px" }}>{t("colProvenance")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -366,7 +375,7 @@ export default function DoctorReview({ go }) {
                       </td>
                       <td style={{ padding: "8px 12px" }}>
                         {r.is_missing ? (
-                          <Tag kind="warn">Not provided / unknown</Tag>
+                          <Tag kind="warn">{t("srcMissing")}</Tag>
                         ) : (
                           <b>{r.value}</b>
                         )}
@@ -384,13 +393,13 @@ export default function DoctorReview({ go }) {
           {/* Missing-Information Checklist (from backend detect_missing) */}
           <div className="card">
             <div className="row">
-              <h2>Missing-information checklist</h2>
+              <h2>{t("missingChecklist")}</h2>
               <span className="small soft">
-                {factors.required_fields_answered || `${6 - missingFields.length}/6 complete`}
+                {factors.required_fields_answered || fmtT(t("nOfSixComplete"), { n: Math.max(0, 6 - missingFields.length) })}
               </span>
             </div>
             <p className="small soft">
-              Missing information ≠ negative answer. Blanks are treated as unknown, never assumed negative.
+              {t("missingNotNegative")}
             </p>
             <div className="check" style={{ margin: "1rem 0" }}>
               {missingFields.map((f) => (
@@ -409,7 +418,7 @@ export default function DoctorReview({ go }) {
                   <Icon n="alert" size={16} />
                   <div>
                     <span style={{ fontWeight: "600", color: "#92400e" }}>
-                      {f.label || f.field}: {f.status || "Not provided / unknown"}
+                      {f.label || f.field}: {f.status || t("srcMissing")}
                     </span>
                     <p className="small soft" style={{ margin: "2px 0 0 0", color: "#b45309" }}>
                       {f.reason}
@@ -430,7 +439,7 @@ export default function DoctorReview({ go }) {
                   }}
                 >
                   <Icon n="check" size={16} />
-                  <span>All required clinical intake fields have been recorded.</span>
+                  <span>{t("allRequiredRecorded")}</span>
                 </div>
               )}
             </div>
@@ -438,22 +447,22 @@ export default function DoctorReview({ go }) {
 
           {/* Uploaded Documents */}
           <div className="card">
-            <h2>Uploaded documents</h2>
+            <h2>{t("uploadedDocuments")}</h2>
             {!c?.docs || c.docs.length === 0 ? (
-              <p className="soft mt">No documents were uploaded for this case.</p>
+              <p className="soft mt">{t("noDocsForCase")}</p>
             ) : (
               c.docs.map((d) => (
                 <div className="li" key={d.id}>
                   <div>
-                    <b>{d.type || "Prescription"}</b>
-                    <p className="small soft">{d.file} • Unverified extraction</p>
+                    <b>{d.type || t("prescription")}</b>
+                    <p className="small soft">{d.file} • {t("unverifiedExtraction")}</p>
                   </div>
                   <Source s="document_extracted_unverified" />
                 </div>
               ))
             )}
             <button className="btn out sm mt" onClick={() => go("documents")}>
-              Manage documents
+              {t("manageDocuments")}
             </button>
           </div>
         </div>
@@ -461,27 +470,26 @@ export default function DoctorReview({ go }) {
         {/* Sidebar: Deterministic Completeness & Notes */}
         <div className="rvside">
           <div className="card center">
-            <h2>Case completeness</h2>
+            <h2>{t("caseCompleteness")}</h2>
             <div style={{ margin: "1rem auto" }}>
-              <Ring value={scoreValue} size={140} label="Completeness" />
+              <Ring value={scoreValue} size={140} label={t("completenessLabel")} />
             </div>
             <Tag kind={scoreValue >= 80 ? "ok" : scoreValue >= 50 ? "warn" : "bad"}>
-              {readinessData?.label || "Awaiting Review"}
+              {readinessData?.label || t("awaitingReview")}
             </Tag>
             <p className="small soft" style={{ marginTop: "0.75rem" }}>
-              {readinessData?.disclaimer ||
-                "This score reflects case data completeness only. It is NOT a measure of diagnostic accuracy or patient health."}
+              {readinessData?.disclaimer || t("scoreDisclaimer")}
             </p>
           </div>
 
           <div className="card">
-            <h3>Completeness factors</h3>
+            <h3>{t("completenessFactors")}</h3>
             <table className="mt calc" style={{ width: "100%" }}>
               <tbody>
                 <tr>
                   <td>
-                    <b>Required fields</b>
-                    <p className="small soft">Core clinical checklist</p>
+                    <b>{t("requiredFields")}</b>
+                    <p className="small soft">{t("coreChecklist")}</p>
                   </td>
                   <td className="end small">
                     <b>{factors.required_fields_answered || "0/6"}</b>
@@ -489,8 +497,8 @@ export default function DoctorReview({ go }) {
                 </tr>
                 <tr>
                   <td>
-                    <b>Critical missing</b>
-                    <p className="small soft">Allergies, meds, acuity</p>
+                    <b>{t("criticalMissing")}</b>
+                    <p className="small soft">{t("criticalMissingSub")}</p>
                   </td>
                   <td className="end small">
                     <b>{Math.round((factors.critical_missing_score ?? 1) * 100)}%</b>
@@ -498,25 +506,25 @@ export default function DoctorReview({ go }) {
                 </tr>
                 <tr>
                   <td>
-                    <b>Information discrepancies</b>
-                    <p className="small soft">Patient vs document conflicts</p>
+                    <b>{t("infoDiscrepancies")}</b>
+                    <p className="small soft">{t("infoDiscrepanciesSub")}</p>
                   </td>
                   <td className="end small">
-                    <b>{factors.open_conflicts ?? 0} open</b>
+                    <b>{factors.open_conflicts ?? 0} {t("open")}</b>
                   </td>
                 </tr>
                 <tr>
                   <td>
-                    <b>Review flags</b>
-                    <p className="small soft">Awaiting clinician decision</p>
+                    <b>{t("reviewFlags")}</b>
+                    <p className="small soft">{t("reviewFlagsSub")}</p>
                   </td>
                   <td className="end small">
-                    <b>{factors.open_flags ?? 0} open</b>
+                    <b>{factors.open_flags ?? 0} {t("open")}</b>
                   </td>
                 </tr>
                 <tr style={{ borderTop: "2px solid #e5e7eb" }}>
                   <td>
-                    <b>Overall score</b>
+                    <b>{t("overallScore")}</b>
                   </td>
                   <td className="end">
                     <b>{scoreValue} / 100</b>
@@ -528,11 +536,11 @@ export default function DoctorReview({ go }) {
 
           <div className="card">
             <div className="row">
-              <h3>Clinician review notes</h3>
-              {isFinalized && <Tag kind="ver">Review finalized</Tag>}
+              <h3>{t("clinicianNotes")}</h3>
+              {isFinalized && <Tag kind="ver">{t("reviewFinalized")}</Tag>}
             </div>
             <label className="small soft" htmlFor="notes">
-              Add observations, instructions, or corrections
+              {t("notesLabel")}
             </label>
             <textarea
               id="notes"
@@ -540,7 +548,7 @@ export default function DoctorReview({ go }) {
               value={notesText}
               onChange={(e) => setNotesText(e.target.value)}
               disabled={isFinalized}
-              placeholder="Add clinician notes for this case"
+              placeholder={t("notesPlaceholder")}
             />
             {!isFinalized ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
@@ -549,33 +557,33 @@ export default function DoctorReview({ go }) {
                   disabled={savingNotes}
                   onClick={handleSaveNotes}
                 >
-                  {savingNotes ? "Saving notes..." : "Save notes"}
+                  {savingNotes ? t("savingNotes") : t("saveNotes")}
                 </button>
                 <button
                   className="btn primary wide"
                   disabled={missingFields.length > 0 || finalizing}
                   onClick={handleFinalize}
                 >
-                  {finalizing ? "Finalizing review..." : "Finalize case"}
+                  {finalizing ? t("finalizing") : t("finalizeCase")}
                 </button>
               </div>
             ) : (
               <div style={{ marginTop: 10, padding: "8px 12px", background: "#f0fdf4", borderRadius: 8, border: "1px solid #bbf7d0" }}>
                 <span className="small" style={{ color: "#166534" }}>
-                  <b>Case finalized & locked.</b>
+                  <b>{t("caseLocked")}</b>
                   {finalizedInfo?.reviewed_at && (
-                    <span className="soft"> Reviewed {new Date(finalizedInfo.reviewed_at).toLocaleDateString()}</span>
+                    <span className="soft"> {t("reviewedOn")} {new Date(finalizedInfo.reviewed_at).toLocaleDateString()}</span>
                   )}
                 </span>
               </div>
             )}
             {missingFields.length > 0 && !isFinalized && (
               <p className="small soft center" style={{ color: "#b45309", marginTop: 8 }}>
-                Complete or verify missing intake fields before final handoff.
+                {t("completeMissingFirst")}
               </p>
             )}
             <p className="small soft center" style={{ marginTop: "8px" }}>
-              The doctor remains responsible for all clinical decisions.
+              {t("doctorResponsible")}
             </p>
           </div>
         </div>

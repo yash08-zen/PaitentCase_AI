@@ -3,6 +3,9 @@ import { useStore } from "../state/store";
 import { Icon, Logo, ClinicalNotice, HealthIndicator, Spinner, ErrorBanner } from "../components/ui";
 import apiClient, { ApiError } from "../api/client";
 
+// Role id -> translation key (the staff role is translated as "clinicStaff")
+const ROLE_KEY = { doctor: "doctor", staff: "clinicStaff", patient: "patient", admin: "admin" };
+
 const DEMO_PRESETS = [
   { role: "doctor", label: "Doctor", username: "doctor", password: "Doctor@1234", desc: "Clinical review, conflicts, handoff" },
   { role: "staff", label: "Clinic Staff", username: "staff", password: "Staff@1234", desc: "Patient registration, document triage" },
@@ -40,6 +43,8 @@ export default function Login({ onLogin, sessionMessage }) {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  // Generated login details shown once after self sign-up
+  const [newCredentials, setNewCredentials] = useState(null);
 
   const handleLanguageChange = (langCode, langLabel) => {
     setLanguage(langCode);
@@ -124,9 +129,13 @@ export default function Login({ onLogin, sessionMessage }) {
       };
 
       const res = await apiClient.selfRegister(payload);
-      if (onLogin) {
-        onLogin(res.user);
-      }
+      // Show the generated login details before entering the portal
+      setNewCredentials({
+        user: res.user,
+        name: res.patient?.full_name,
+        username: res.username || res.user?.username,
+        password: res.temporary_password,
+      });
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -257,7 +266,36 @@ export default function Login({ onLogin, sessionMessage }) {
           />
         )}
 
-        {authMode === "signin" ? (
+        {newCredentials ? (
+          <div className="card" role="region" aria-label={t("yourLoginDetails")} style={{ padding: "1.4rem" }}>
+            <span className="okcircle" style={{ marginBottom: "0.6rem" }}>
+              <Icon n="check" size={22} />
+            </span>
+            <h2 style={{ margin: "0.3rem 0", fontSize: "1.3rem" }}>{t("accountCreated")}</h2>
+            <p className="soft" style={{ marginTop: 0 }}>{t("saveCredentialsHint")}</p>
+            <div style={{ background: "#f4f7f4", border: "1px solid var(--line)", borderRadius: 10, padding: "0.9rem 1rem", margin: "0.8rem 0" }}>
+              <div className="small soft">{t("username")}</div>
+              <b style={{ fontFamily: "ui-monospace, monospace", fontSize: "1.05rem" }} data-testid="new-username">{newCredentials.username}</b>
+              <div className="small soft" style={{ marginTop: "0.6rem" }}>{t("password")}</div>
+              <b style={{ fontFamily: "ui-monospace, monospace", fontSize: "1.05rem" }} data-testid="new-password">{newCredentials.password}</b>
+            </div>
+            <div className="actions">
+              <button
+                type="button"
+                className="btn out sm"
+                onClick={() => {
+                  navigator.clipboard?.writeText(`${t("username")}: ${newCredentials.username}
+${t("password")}: ${newCredentials.password}`).catch(() => {});
+                }}
+              >
+                {t("copyDetails")}
+              </button>
+              <button type="button" className="btn primary" onClick={() => onLogin && onLogin(newCredentials.user)}>
+                {t("continueToPortal")}
+              </button>
+            </div>
+          </div>
+        ) : authMode === "signin" ? (
           <form onSubmit={handleSignIn}>
             <h2 style={{ marginTop: "0.4rem", fontSize: "1.3rem" }}>{t("signInTab")}</h2>
             <p className="soft small">
@@ -282,7 +320,7 @@ export default function Login({ onLogin, sessionMessage }) {
                     style={{ textAlign: "left", padding: "0.35rem 0.6rem", fontSize: "0.78rem" }}
                     disabled={loading}
                   >
-                    <b>{language === "en" ? preset.label : (t(preset.role) || preset.label)}</b>
+                    <b>{language === "en" ? preset.label : t(ROLE_KEY[preset.role] || preset.role)}</b>
                   </button>
                 ))}
               </div>
@@ -350,7 +388,7 @@ export default function Login({ onLogin, sessionMessage }) {
             </label>
 
             <button className="btn primary wide" type="submit" disabled={loading}>
-              {loading ? <Spinner text={t("signingIn")} /> : `${t("signInButton")} (${(t(selectedRole) || selectedRole).toUpperCase()})`}
+              {loading ? <Spinner text={t("signingIn")} /> : `${t("signInButton")} (${(language === "en" ? selectedRole.toUpperCase() : t(ROLE_KEY[selectedRole] || selectedRole))})`}
             </button>
 
             <div style={{ textAlign: "center", marginTop: "0.9rem" }}>

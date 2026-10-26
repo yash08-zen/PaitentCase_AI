@@ -19,16 +19,6 @@ export default function PatientPortal({ go, user }) {
   const c = cases[p?.id];
   const encounterId = c?.encounterId;
 
-  // Sync language with patient record on initial mount
-  useEffect(() => {
-    if (p?.language) {
-      const match = LANGUAGES.find(
-        (l) => (l.name || l.label || "").toLowerCase() === p.language.toLowerCase() || l.code === p.language.toLowerCase()
-      );
-      if (match && match.code !== language) setLanguage(match.code);
-    }
-  }, [p?.language, language, setLanguage, LANGUAGES]);
-
   // Load interview progress
   useEffect(() => {
     if (!encounterId) return;
@@ -79,8 +69,8 @@ export default function PatientPortal({ go, user }) {
             <span className="tag t-patient" style={{ fontSize: "0.8rem", padding: "0.2rem 0.6rem" }}>
               {t("portal")}
             </span>
-            <span className="small soft">Unique ID: <b>{p?.id || "P-New"}</b></span>
-            {encounterId && <span className="small soft">&bull; Encounter <b>#{encounterId}</b></span>}
+            <span className="small soft">{t("uniqueId")}: <b>{p?.id || "P-New"}</b></span>
+            {encounterId && <span className="small soft">&bull; {t("encounter")} <b>#{encounterId}</b></span>}
           </div>
           <h1 style={{ margin: "0.4rem 0 0.2rem", fontSize: "1.8rem" }}>
             {p?.name || user?.username || t("patient")}
@@ -125,8 +115,8 @@ export default function PatientPortal({ go, user }) {
             {t("step1Desc")}
           </p>
           <div className="small" style={{ background: "#f8faf8", padding: "0.6rem 0.8rem", borderRadius: "8px" }}>
-            <div><b>{t("age")}:</b> {p?.age || "—"} &bull; <b>{t("gender")}:</b> {p?.gender || "—"}</div>
-            <div><b>{t("chiefComplaint")}:</b> {p?.complaint || c?.answers?.complaint || "Routine case review"}</div>
+            <div><b>{t("age")}:</b> {p?.age || "—"} &bull; <b>{t("gender")}:</b> {p?.gender ? t(p.gender.toLowerCase()) : "—"}</div>
+            <div><b>{t("chiefComplaint")}:</b> {p?.complaint || c?.answers?.complaint || t("routineReview")}</div>
           </div>
         </div>
 
@@ -159,7 +149,7 @@ export default function PatientPortal({ go, user }) {
             <span className="tag t-patient">
               <Icon n="chat" size={12} /> {t("step3Title")}
             </span>
-            <span className="small soft">{progressPercent}% complete</span>
+            <span className="small soft">{progressPercent}% {t("completeWord")}</span>
           </div>
           <h3 style={{ margin: "0.2rem 0 0.4rem", fontSize: "1.1rem" }}>{t("step3Heading")}</h3>
           <p className="small soft" style={{ marginBottom: "0.6rem" }}>
@@ -185,9 +175,9 @@ export default function PatientPortal({ go, user }) {
         <div style={{ display: "flex", alignItems: "flex-start", gap: "0.8rem" }}>
           <div style={{ fontSize: "1.8rem" }}>📋</div>
           <div>
-            <h4 style={{ margin: "0 0 0.2rem", fontSize: "1rem" }}>What happens next?</h4>
+            <h4 style={{ margin: "0 0 0.2rem", fontSize: "1rem" }}>{t("whatNext")}</h4>
             <p className="small soft" style={{ margin: 0, lineHeight: 1.5 }}>
-              Once you finish answering the questions and uploading any documents, PatientCase AI compiles your answers into a structured clinical summary with verified medication provenance. Your consulting physician will review this entire case file during your visit.
+              {t("whatNextText")}
             </p>
           </div>
         </div>

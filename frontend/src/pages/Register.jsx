@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useStore } from "../state/store";
 import { Icon, Spinner, ErrorBanner } from "../components/ui";
+import { fmtT, parseServerDate } from "../utils/i18n";
 
 const BLANK = {
   name: "",
@@ -90,23 +91,23 @@ export default function Register({ go }) {
         <span className="okcircle">
           <Icon n="check" size={26} />
         </span>
-        <h2>{done.name} is successfully registered</h2>
+        <h2>{fmtT(t("registeredSuccess"), { name: done.name })}</h2>
         <p className="soft">
-          Generated Unique Patient ID: <b>P-{done.patientId}</b> &bull; Encounter ID: <b>#{done.encounterId}</b>
+          {t("generatedId")}: <b>P-{done.patientId}</b> &bull; {t("encounterId")}: <b>#{done.encounterId}</b>
         </p>
 
         <div style={{ margin: "0.5rem 0 1rem", padding: "0.75rem 1rem", background: "#f0f7f1", borderRadius: "10px", textAlign: "left" }}>
           <span className="tag t-ver" style={{ marginBottom: "0.3rem" }}>
-            <Icon n="check" size={12} /> Informed Consent Recorded
+            <Icon n="check" size={12} /> {t("consentRecorded")}
           </span>
           <p className="small soft" style={{ margin: 0 }}>
-            Consent timestamp: {new Date(done.timestamp).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "medium" })}
+            {t("consentTimestamp")}: {parseServerDate(done.timestamp).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "medium" })}
           </p>
         </div>
 
         <div className="actions">
           <button className="btn primary" onClick={() => go("interview")}>
-            Start adaptive interview
+            {t("startAdaptiveInterview")}
           </button>
           <button
             className="btn out"
@@ -116,7 +117,7 @@ export default function Register({ go }) {
               setErr({});
             }}
           >
-            Register another patient
+            {t("registerAnother")}
           </button>
         </div>
       </div>
@@ -160,7 +161,7 @@ export default function Register({ go }) {
 
       {serverError && (
         <ErrorBanner
-          title="Registration Error"
+          title={t("registrationError")}
           message={serverError}
           onRetry={() => setServerError(null)}
         />

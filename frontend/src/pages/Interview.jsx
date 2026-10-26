@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { useStore } from "../state/store";
 import apiClient from "../api/client";
-import { Bar, Empty, Icon, Tag, Proto, Spinner } from "../components/ui";
+import { Bar, Empty, Icon, Tag, Proto, Spinner, Source } from "../components/ui";
 import VoiceAssistant from "../components/VoiceAssistant";
-import { getLocalQuestionTranslation } from "../utils/i18n";
+import { getLocalQuestionTranslation, fmtT } from "../utils/i18n";
 
 function formatValue(v) {
   if (Array.isArray(v)) return v.join(", ");
@@ -246,6 +246,7 @@ function QuestionCard({
 }
 
 function AdaptivePathPanel({ progressData }) {
+  const { t } = useStore();
   const activePath = progressData?.active_path || [];
   const skippedList = progressData?.skipped_questions || [];
 
@@ -256,16 +257,16 @@ function AdaptivePathPanel({ progressData }) {
   const followUps = activePath.filter((item) => item.because);
 
   return (
-    <aside className="card adapt" aria-label="Adaptive path">
+    <aside className="card adapt" aria-label={t("adaptivePathAria")}>
       <div className="row">
-        <h2>Adaptive path</h2>
-        <Proto>Rule-based</Proto>
+        <h2>{t("adaptivePathHeading")}</h2>
+        <Proto>{t("ruleBasedShort")}</Proto>
       </div>
       <p className="small soft">
-        The engine dynamically selects each question from your earlier answers.
+        {t("adaptivePathDesc")}
       </p>
 
-      <h3>Follow-ups added for you</h3>
+      <h3>{t("followUpsHeading")}</h3>
       {followUps.length ? (
         <ul>
           {followUps.map((item) => (
@@ -280,10 +281,10 @@ function AdaptivePathPanel({ progressData }) {
           ))}
         </ul>
       ) : (
-        <p className="small soft">None yet. Follow-ups appear as you answer.</p>
+        <p className="small soft">{t("noFollowUps")}</p>
       )}
 
-      <h3>Skipped as not relevant</h3>
+      <h3>{t("skippedNotRelevant")}</h3>
       {skippedList.length ? (
         <ul className="muted">
           {skippedList.map((item) => (
@@ -298,12 +299,12 @@ function AdaptivePathPanel({ progressData }) {
           ))}
         </ul>
       ) : (
-        <p className="small soft">Nothing skipped yet.</p>
+        <p className="small soft">{t("nothingSkipped")}</p>
       )}
 
-      <h3>Answers so far</h3>
+      <h3>{t("answersSoFar")}</h3>
       {sections.length === 0 ? (
-        <p className="small soft">No answers recorded yet.</p>
+        <p className="small soft">{t("noAnswersYet")}</p>
       ) : (
         sections.map((sec) => (
           <div key={sec} className="grp">
@@ -323,7 +324,8 @@ function AdaptivePathPanel({ progressData }) {
   );
 }
 
-export default function Interview({ go }) {
+export default function Interview({ go, user }) {
+  const isPatientRole = (user?.role || "").toLowerCase() === "patient";
   const { patients, cases, activeId, notify, language, setLanguage, t, LANGUAGES } = useStore();
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -575,11 +577,11 @@ export default function Interview({ go }) {
   if (!p) {
     return (
       <Empty
-        title="No patient selected"
-        text="Choose a patient from the directory to start their clinical intake interview."
+        title={t("noPatientSelected")}
+        text={t("chooseForInterview")}
         action={
-          <button className="btn primary" onClick={() => go("patients")}>
-            Open patient list
+          <button className="btn primary" onClick={() => go(isPatientRole ? "portal" : "patients")}>
+            {isPatientRole ? t("portal") : t("openPatientList")}
           </button>
         }
       />
@@ -590,14 +592,14 @@ export default function Interview({ go }) {
   if (loading) {
     body = (
       <div style={{ padding: "40px 0", textAlign: "center" }}>
-        <Spinner text={`Loading adaptive interview for ${p.name}...`} />
+        <Spinner text={fmtT(t("loadingInterviewFor"), { name: p.name })} />
       </div>
     );
   } else if (isComplete) {
     const findingsList = summaryData?.structured_findings || [];
     const missingFields = missingData?.missing_fields || [];
     const scoreVal = readinessData?.score != null ? Math.round(readinessData.score * 100) : 100;
-    const reqAnswered = readinessData?.factors?.required_fields_answered || `${6 - missingFields.length}/6`;
+    const reqAnswered = readinessData?.factors?.required_fields_answered || `${Math.max(0, 6 - missingFields.length)}/6`;
 
     body = (
       <div className="card" style={{ padding: "1.5rem" }}>
@@ -628,28 +630,27 @@ export default function Interview({ go }) {
         >
           <div>
             <span style={{ fontWeight: "600", color: "#166534" }}>
-              Case Data Completeness: {scoreVal}% — {readinessData?.label || "Ready for Review"}
+              {t("caseDataCompleteness")}: {scoreVal}% — {readinessData?.label || t("readyForReview")}
             </span>
             <p className="small soft" style={{ margin: "2px 0 0 0", color: "#15803d" }}>
-              {readinessData?.disclaimer ||
-                "This score reflects case data completeness only. It is NOT a measure of diagnostic accuracy or patient health."}
+              {readinessData?.disclaimer || t("scoreDisclaimer")}
             </p>
           </div>
-          <Tag kind={scoreVal >= 80 ? "ok" : "warn"}>{reqAnswered} required answered</Tag>
+          <Tag kind={scoreVal >= 80 ? "ok" : "warn"}>{fmtT(t("nRequiredAnswered"), { n: reqAnswered })}</Tag>
         </div>
 
         {/* Structured findings table with provenance */}
-        <h2>Case intake summary & findings</h2>
+        <h2>{t("intakeSummary")}</h2>
         <p className="small soft">
-          Each clinical history item carries its recorded provenance label.
+          {t("intakeSummaryDesc")}
         </p>
         <div className="scroll" style={{ margin: "1rem 0" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ textAlign: "left", borderBottom: "2px solid #e5e7eb" }}>
-                <th style={{ padding: "8px 12px" }}>Item</th>
-                <th style={{ padding: "8px 12px" }}>Recorded Response</th>
-                <th style={{ padding: "8px 12px" }}>Source Provenance</th>
+                <th style={{ padding: "8px 12px" }}>{t("colItem")}</th>
+                <th style={{ padding: "8px 12px" }}>{t("colRecordedResponse")}</th>
+                <th style={{ padding: "8px 12px" }}>{t("colProvenance")}</th>
               </tr>
             </thead>
             <tbody>
@@ -664,7 +665,7 @@ export default function Interview({ go }) {
                   </td>
                   <td style={{ padding: "8px 12px" }}>
                     {r.is_missing ? (
-                      <Tag kind="warn">Not provided / unknown</Tag>
+                      <Tag kind="warn">{t("srcMissing")}</Tag>
                     ) : (
                       <b>{r.value}</b>
                     )}
@@ -679,7 +680,7 @@ export default function Interview({ go }) {
         </div>
 
         {/* Missing information checklist */}
-        <h2>Required fields checklist</h2>
+        <h2>{t("requiredChecklist")}</h2>
         <div style={{ margin: "0.75rem 0 1.5rem 0" }}>
           {missingFields.map((f) => (
             <div
@@ -696,7 +697,7 @@ export default function Interview({ go }) {
             >
               <Icon n="alert" size={16} />
               <span style={{ fontWeight: "600", color: "#92400e" }}>
-                {f.label || f.field}: {f.status || "Not provided / unknown"}
+                {f.label || f.field}: {f.status || t("srcMissing")}
               </span>
               <span className="small soft" style={{ marginLeft: "auto", color: "#b45309" }}>
                 {f.reason}
@@ -716,15 +717,17 @@ export default function Interview({ go }) {
               }}
             >
               <Icon n="check" size={16} />
-              <span>All required clinical intake fields completed.</span>
+              <span>{t("allFieldsCompleted")}</span>
             </div>
           )}
         </div>
 
         <div className="actions" style={{ marginTop: "1.5rem" }}>
-          <button className="btn primary" onClick={() => go("review")}>
-            {t("openDoctorReviewBtn")}
-          </button>
+          {!isPatientRole && (
+            <button className="btn primary" onClick={() => go("review")}>
+              {t("openDoctorReviewBtn")}
+            </button>
+          )}
           <button className="btn out" onClick={() => go("documents")}>
             {t("uploadPrescriptionsBtn")}
           </button>
@@ -820,7 +823,7 @@ export default function Interview({ go }) {
 
       {/* Multilingual Language Selector (M12 / FR-12) */}
       <div className="language-selector-bar" role="radiogroup" aria-label="Select interview language">
-        <span className="small soft" style={{ marginRight: 4 }}>Language:</span>
+        <span className="small soft" style={{ marginRight: 4 }}>{t("languageLabel")}</span>
         <button
           type="button"
           role="radio"

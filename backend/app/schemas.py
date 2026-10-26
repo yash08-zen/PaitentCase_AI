@@ -227,6 +227,9 @@ class PatientSelfRegisterResponse(BaseModel):
     user: UserOut
     patient: PatientOut
     encounter: EncounterOut
+    # Generated credentials, returned once so the patient can sign in again later
+    username: str
+    temporary_password: str
 
 
 # ── Interview ─────────────────────────────────────────────────────────────────

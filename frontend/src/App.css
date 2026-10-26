@@ -80,7 +80,8 @@ textarea{margin:.4rem 0 .6rem;resize:vertical}
 /* ---------- Dashboard ---------- */
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
 .stat b{display:block;font-size:2.6rem;line-height:1.1;margin:.5rem 0;letter-spacing:-.03em}
-.stat .arrow{width:28px;height:28px;border-radius:50%;border:1px solid currentColor;display:grid;place-items:center;opacity:.7}
+.stat .arrow{width:28px;height:28px;border-radius:50%;border:1px solid currentColor;display:grid;place-items:center;opacity:.7;background:none;color:inherit;padding:0;cursor:pointer}
+.stat .arrow:hover{opacity:1}
 .stat.hero{color:#fff;background:radial-gradient(circle at 90% 0,#5DAA5D 0,transparent 55%),linear-gradient(145deg,#3B8A3B,#2A6A2A)}
 .cols{display:grid;grid-template-columns:1.3fr 1fr;gap:14px;margin-bottom:14px}
 .bars{display:flex;align-items:flex-end;justify-content:space-between;gap:.6rem;height:190px;margin-top:1rem}

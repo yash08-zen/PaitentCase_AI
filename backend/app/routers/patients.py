@@ -90,7 +90,8 @@ async def self_register_patient(
     await db.refresh(encounter)
 
     # 4. Generate JWT access token with role 'patient'
-    token = create_access_token({"sub": user.username, "role": user.role.value, "user_id": user.id})
+    # "sub" must be the numeric user id, matching /api/auth/login and get_current_user()
+    token = create_access_token({"sub": str(user.id), "role": user.role.value})
 
     await log_audit_event(
         db,
@@ -107,6 +108,8 @@ async def self_register_patient(
         user=UserOut.model_validate(user),
         patient=PatientOut.model_validate(patient),
         encounter=EncounterOut.model_validate(encounter),
+        username=unique_username,
+        temporary_password=temp_password,
     )
 
 

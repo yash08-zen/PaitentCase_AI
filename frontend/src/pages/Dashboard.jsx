@@ -3,11 +3,13 @@ import { useStore } from "../state/store";
 import { completeness, openFlags, statusOf } from "../utils/engine";
 import { Icon, Ring, StatusTag, Proto, Tag } from "../components/ui";
 import apiClient from "../api/client";
+import { fmtT } from "../utils/i18n";
 
-const WEEK = [["S", 2], ["M", 7], ["T", 5], ["W", 9], ["T", 6], ["F", 3], ["S", 1]];
+const WEEK = [2, 7, 5, 9, 6, 3, 1];
 
 export default function Dashboard({ go }) {
-  const { patients, cases, setActiveId } = useStore();
+  const { patients, cases, setActiveId, t } = useStore();
+  const days = t("weekDays").split(",");
   const [liveSummary, setLiveSummary] = useState(null);
   const [liveCases, setLiveCases] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -44,12 +46,10 @@ export default function Dashboard({ go }) {
 
   const openBackendCase = (backendEnc) => {
     // Match local patient by backendId or patient_id
-    const localMatch = patients.find((p) => p.backendId === backendEnc.patient_id || p.name === backendEnc.patient_name);
-    if (localMatch) {
-      setActiveId(localMatch.id);
-    } else if (patients.length > 0) {
-      setActiveId(patients[0].id);
-    }
+    // Never fall back to an unrelated patient: opening the wrong record is worse than not opening one.
+    const localMatch = patients.find((p) => p.backendId === backendEnc.patient_id);
+    if (!localMatch) return;
+    setActiveId(localMatch.id);
     go("review");
   };
 
@@ -59,38 +59,38 @@ export default function Dashboard({ go }) {
   const activeCount = liveSummary?.active_encounters ?? rows.filter((r) => ["interview", "new"].includes(r.c?.stage)).length;
 
   const stats = [
-    ["Total patients", totalPatientsCount, "Registered in system"],
-    ["Interviews complete", completedCount, "Ready for clinician review"],
-    ["Needs review", reviewCount, "Open flags / conflicts"],
-    ["In progress", activeCount, "Intake currently active"],
+    [t("statTotal"), totalPatientsCount, t("statTotalSub"), "patients"],
+    [t("statComplete"), completedCount, t("statCompleteSub"), "patients"],
+    [t("statReview"), reviewCount, t("statReviewSub"), "patients"],
+    [t("statProgress"), activeCount, t("statProgressSub"), "patients"],
   ];
 
   return (
     <>
       <div className="head">
         <div>
-          <h1>Dashboard</h1>
-          <p className="soft">Intake activity and cases waiting for clinician review.</p>
+          <h1>{t("dashboard")}</h1>
+          <p className="soft">{t("dashSubtitle")}</p>
         </div>
         <div className="actions">
           <button className="btn primary" onClick={() => go("register")}>
             <Icon n="plus" />
-            Register patient
+            {t("register")}
           </button>
           <button className="btn out" onClick={() => go("patients")}>
-            View patients
+            {t("viewPatients")}
           </button>
         </div>
       </div>
 
       <div className="stats">
-        {stats.map(([l, v, s], i) => (
-          <div key={l} className={`card stat ${i === 0 ? "hero" : ""}`}>
+        {stats.map(([l, v, s, target], i) => (
+          <div key={i} className={`card stat ${i === 0 ? "hero" : ""}`}>
             <div className="row">
               <span>{l}</span>
-              <span className="arrow">
+              <button type="button" className="arrow" onClick={() => go(target)} aria-label={l}>
                 <Icon n="arrow" size={14} />
-              </span>
+              </button>
             </div>
             <b>{v}</b>
             <p className="small">{s}</p>
@@ -100,29 +100,29 @@ export default function Dashboard({ go }) {
 
       <div className="cols">
         <div className="card">
-          <h2>Weekly intake</h2>
-          <p className="small soft">Patients registered per day (sample distribution)</p>
+          <h2>{t("weeklyIntake")}</h2>
+          <p className="small soft">{t("weeklyIntakeSub")}</p>
           <div className="bars">
-            {WEEK.map(([d, n], i) => (
+            {WEEK.map((n, i) => (
               <div key={i} className="barcol">
                 <div
                   className={`pillbar ${n >= 5 ? "on" : "hatch"}`}
                   style={{ height: 24 + n * 14 }}
-                  title={`${n} patients`}
+                  title={fmtT(t("nPatients"), { n })}
                 />
-                <span className="small soft">{d}</span>
+                <span className="small soft">{days[i]}</span>
               </div>
             ))}
           </div>
         </div>
 
         <div className="card center">
-          <h2>Average case completeness</h2>
-          <p className="small soft">Across completed interviews</p>
+          <h2>{t("avgCompleteness")}</h2>
+          <p className="small soft">{t("avgCompletenessSub")}</p>
           <div style={{ margin: "1rem auto" }}>
-            <Ring value={avg} label="Average completeness" />
+            <Ring value={avg} label={t("avgCompleteness")} />
           </div>
-          <p className="small soft">Measures completeness of information, not health or diagnostic accuracy.</p>
+          <p className="small soft">{t("completenessDisclaimer")}</p>
         </div>
       </div>
 
@@ -130,8 +130,8 @@ export default function Dashboard({ go }) {
         {/* Clinician Review Queue */}
         <div className="card">
           <div className="row">
-            <h2>Cases requiring review</h2>
-            <Proto>Clinician review queue</Proto>
+            <h2>{t("casesRequiringReview")}</h2>
+            <Proto>{t("reviewQueue")}</Proto>
           </div>
 
           {liveCases && liveCases.length > 0 ? (
@@ -140,32 +140,32 @@ export default function Dashboard({ go }) {
                 <div>
                   <b>{enc.patient_name}</b>
                   <p className="small soft">
-                    {enc.chief_complaint || "General intake"} • {enc.open_flags} flag(s), {enc.open_conflicts} discrepancy(ies)
+                    {enc.chief_complaint || t("generalIntake")} • {fmtT(t("flagsAndDiscrepancies"), { flags: enc.open_flags, conflicts: enc.open_conflicts })}
                   </p>
                 </div>
                 <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                   <Tag kind={enc.status === "reviewed" ? "ver" : "warn"}>
-                    {enc.status === "reviewed" ? "Reviewed" : "Needs Review"}
+                    {enc.status === "reviewed" ? t("reviewed") : t("stNeedsReview")}
                   </Tag>
                   <button className="btn out sm" onClick={() => openBackendCase(enc)}>
-                    Open review
+                    {t("openReview")}
                   </button>
                 </div>
               </div>
             ))
           ) : reviewLocal.length === 0 ? (
-            <p className="soft mt">No open flags. All reviewed cases are up to date.</p>
+            <p className="soft mt">{t("noOpenFlags")}</p>
           ) : (
             reviewLocal.map(({ p, c }) => (
               <div className="li" key={p.id}>
                 <div>
                   <b>{p.name}</b>
                   <p className="small soft">
-                    {c.answers.complaint || "Intake"} · {openFlags(c).length} open flag(s)
+                    {c.answers.complaint || t("generalIntake")} · {fmtT(t("nOpenFlags"), { n: openFlags(c).length })}
                   </p>
                 </div>
                 <button className="btn out sm" onClick={() => openLocal(p.id, "review")}>
-                  Open review
+                  {t("openReview")}
                 </button>
               </div>
             ))
@@ -173,13 +173,13 @@ export default function Dashboard({ go }) {
         </div>
 
         <div className="card">
-          <h2>Recent cases</h2>
+          <h2>{t("recentCases")}</h2>
           {rows.slice(0, 5).map(({ p, c }) => (
             <div className="li" key={p.id}>
               <div>
                 <b>{p.name}</b>
                 <p className="small soft">
-                  {p.id} · {p.age ? `${p.age} yrs` : "Age not specified"}
+                  {p.id} · {p.age ? `${p.age} ${t("yrs")}` : t("ageNotSpecified")}
                 </p>
               </div>
               <StatusTag s={statusOf(c)} />

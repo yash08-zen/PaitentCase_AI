@@ -2,11 +2,13 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useStore } from "../state/store";
 import apiClient from "../api/client";
 import { Empty, Icon, Proto, Source, Tag, Spinner } from "../components/ui";
+import { fmtT, parseServerDate } from "../utils/i18n";
 
 const ALLOWED_EXTS = [".png", ".jpg", ".jpeg", ".webp", ".tif", ".tiff", ".pdf"];
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
 
-export default function Documents({ go }) {
+export default function Documents({ go, user }) {
+  const isPatientRole = (user?.role || "").toLowerCase() === "patient";
   const { patients, cases, activeId, notify, t, language } = useStore();
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -196,11 +198,11 @@ export default function Documents({ go }) {
   if (!p) {
     return (
       <Empty
-        title="No patient selected"
-        text="Choose a patient from the patient list before viewing or uploading medical documents."
+        title={t("noPatientSelected")}
+        text={t("chooseForDocs")}
         action={
-          <button className="btn primary" onClick={() => go("patients")}>
-            Open patient list
+          <button className="btn primary" onClick={() => go(isPatientRole ? "portal" : "patients")}>
+            {isPatientRole ? t("portal") : t("openPatientList")}
           </button>
         }
       />
@@ -213,16 +215,18 @@ export default function Documents({ go }) {
         <div>
           <h1>{t("docsHeading")}</h1>
           <p className="soft">
-            {p.name} · {p.id} {encounterId ? `· Encounter #${encounterId}` : ""} · <span className="tag t-sys" style={{ fontSize: "0.72rem" }}><Icon n="check" size={12} /> {t("localNeuralOcr")}</span>
+            {p.name} · {p.id} {encounterId ? `· ${t("encounter")} #${encounterId}` : ""} · <span className="tag t-sys" style={{ fontSize: "0.72rem" }}><Icon n="check" size={12} /> {t("localNeuralOcr")}</span>
           </p>
         </div>
         <div className="actions">
           <button className="btn out sm" onClick={loadDocuments} disabled={loading}>
             <Icon n="reset" size={14} /> {t("refreshDocs")}
           </button>
-          <button className="btn out sm" onClick={() => go("review")}>
-            {t("doctorReviewBtn")}
-          </button>
+          {!isPatientRole && (
+            <button className="btn out sm" onClick={() => go("review")}>
+              {t("doctorReviewBtn")}
+            </button>
+          )}
         </div>
       </div>
 
@@ -338,25 +342,27 @@ export default function Documents({ go }) {
             <div className="banner bad" role="alert" style={{ marginBottom: 14 }}>
               <Icon n="alert" />
               <div>
-                <b>{conflictsCount} clinical discrepanc{conflictsCount === 1 ? "y" : "ies"} detected</b>
+                <b>{fmtT(t("nDiscrepanciesDetected"), { n: conflictsCount })}</b>
                 <p className="small">
-                  The uploaded prescription documents contradict patient-reported statements. Verification required.
+                  {t("docsContradict")}
                 </p>
               </div>
-              <button className="btn out sm" onClick={() => go("review")}>
-                Open doctor review
-              </button>
+              {!isPatientRole && (
+                <button className="btn out sm" onClick={() => go("review")}>
+                  {t("openDoctorReviewBtn")}
+                </button>
+              )}
             </div>
           )}
 
           {loading && docs.length === 0 ? (
             <div className="card" style={{ padding: 40, textAlign: "center" }}>
-              <Spinner size={24} text="Loading documents from backend..." />
+              <Spinner size={24} text={t("loadingDocs")} />
             </div>
           ) : docs.length === 0 ? (
             <Empty
-              title="No documents uploaded yet"
-              text="Upload a printed prescription or lab document to see real OCR extractions and confidence scores."
+              title={t("noDocsYet")}
+              text={t("noDocsYetText")}
             />
           ) : (
             docs.map((d) => {
@@ -380,16 +386,16 @@ export default function Documents({ go }) {
                         <h2 style={{ margin: 0 }}>{d.original_filename}</h2>
                         {isProcessing && (
                           <Tag kind="sys">
-                            <Spinner size={12} text="" /> Processing OCR...
+                            <Spinner size={12} text="" /> {t("processingOcr")}
                           </Tag>
                         )}
-                        {isComplete && <Tag kind="ver">OCR Complete</Tag>}
-                        {isReview && <Tag kind="warn">Needs Review</Tag>}
-                        {isFailed && <Tag kind="bad">Failed</Tag>}
+                        {isComplete && <Tag kind="ver">{t("ocrComplete")}</Tag>}
+                        {isReview && <Tag kind="warn">{t("stNeedsReview")}</Tag>}
+                        {isFailed && <Tag kind="bad">{t("failed")}</Tag>}
                       </div>
                       <p className="small soft" style={{ marginTop: 4 }}>
                         {d.document_type.toUpperCase()} · {formatBytes(d.file_size_bytes)} ·{" "}
-                        {d.created_at ? new Date(d.created_at).toLocaleString() : "Just now"}
+                        {d.created_at ? parseServerDate(d.created_at).toLocaleString() : t("justNow")}
                       </p>
                     </div>
 
@@ -402,8 +408,8 @@ export default function Documents({ go }) {
                   {isProcessing && (
                     <div style={{ marginTop: 12, padding: "10px 14px", background: "var(--shell)", borderRadius: 10 }}>
                       <div className="row" style={{ marginBottom: 6 }}>
-                        <span className="small">Running OCR engine (CLAHE preprocessing & character detection)...</span>
-                        <span className="small soft">Live polling</span>
+                        <span className="small">{t("runningOcr")}</span>
+                        <span className="small soft">{t("livePolling")}</span>
                       </div>
                       <div className="bar">
                         <i className="indet" />
@@ -416,9 +422,9 @@ export default function Documents({ go }) {
                     <div className="banner" data-testid="handwritten-warning-banner" style={{ background: "var(--amberbg)", color: "var(--amber)", marginTop: 12 }}>
                       <Icon n="alert" />
                       <div>
-                        <b>⚠️ Handwritten / Low Confidence Document Detected</b>
+                        <b>{t("lowConfidenceTitle")}</b>
                         <p className="small">
-                          RapidOCR on unconstrained cursive doctor handwriting has low automated recall (~0-40%). Clinician manual verification and transcription is strictly mandatory before finalizing this case.
+                          {t("lowConfidenceText")}
                         </p>
                       </div>
                     </div>
@@ -428,9 +434,9 @@ export default function Documents({ go }) {
                     <div className="banner bad" style={{ marginTop: 12 }}>
                       <Icon n="alert" />
                       <div>
-                        <b>OCR processing failed</b>
+                        <b>{t("ocrFailed")}</b>
                         <p className="small">
-                          The document could not be decoded as text. The uploaded file is safely preserved in protected storage.
+                          {t("ocrFailedText")}
                         </p>
                       </div>
                     </div>
@@ -441,17 +447,17 @@ export default function Documents({ go }) {
                     <div style={{ marginTop: 14 }}>
                       <div className="row" style={{ marginBottom: 6 }}>
                         <span className="small soft">
-                          <b>Extracted Text (Unverified Evidence)</b>
+                          <b>{t("extractedText")}</b>
                         </span>
                         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                           {confidencePct !== null && (
                             <span className="small soft">
-                              Confidence: <b>{confidencePct}%</b>
+                              {t("confidence")}: <b>{confidencePct}%</b>
                             </span>
                           )}
                           {elapsedSec && (
                             <span className="small soft">
-                              Elapsed: <b>{elapsedSec}s</b>
+                              {t("elapsed")}: <b>{elapsedSec}s</b>
                             </span>
                           )}
                         </div>
@@ -487,11 +493,13 @@ export default function Documents({ go }) {
                       }}
                     >
                       <Icon n="doc" size={14} />
-                      {selectedDoc === d.id ? "Hide scan preview" : "View original scan"}
+                      {selectedDoc === d.id ? t("hidePreview") : t("viewScan")}
                     </button>
-                    <button className="btn out sm" onClick={() => go("review")}>
-                      Open doctor review
-                    </button>
+                    {!isPatientRole && (
+                      <button className="btn out sm" onClick={() => go("review")}>
+                        {t("openDoctorReviewBtn")}
+                      </button>
+                    )}
                   </div>
 
                   {/* Expanded Image Preview */}
@@ -510,7 +518,7 @@ export default function Documents({ go }) {
                         />
                       ) : (
                         <div style={{ padding: 20 }}>
-                          <Spinner size={20} text="Fetching protected file from backend..." />
+                          <Spinner size={20} text={t("fetchingFile")} />
                         </div>
                       )}
                     </div>

@@ -1,10 +1,16 @@
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { CASES, PATIENTS, emptyCase } from "../data/patients";
 import apiClient from "../api/client";
 import { t as i18nT, LANGUAGES } from "../utils/i18n";
 
 export const Ctx = createContext(null);
 export const useStore = () => useContext(Ctx);
+
+// Translator for shared components; falls back to English outside the provider (e.g. tests)
+export const useT = () => {
+  const store = useContext(Ctx);
+  return store?.t || ((key) => i18nT(key, "en"));
+};
 
 export function StoreProvider({ children }) {
   const [patients, setPatients] = useState(PATIENTS);
@@ -32,14 +38,18 @@ export function StoreProvider({ children }) {
 
   const t = useCallback((key) => i18nT(key, language), [language]);
 
+  const toastTimer = useRef(null);
   const notify = useCallback((msg, type = "success") => {
+    clearTimeout(toastTimer.current);
     if (!msg) {
       setToast(null);
       return;
     }
-    const toastObj = typeof msg === "object" ? msg : { message: msg, type };
+    // Accept legacy boolean `true` as an error flag
+    const kind = type === true ? "error" : type || "success";
+    const toastObj = typeof msg === "object" ? msg : { message: msg, type: kind };
     setToast(toastObj);
-    setTimeout(() => setToast(null), 3500);
+    toastTimer.current = setTimeout(() => setToast(null), 3500);
   }, []);
 
   const patch = (id, fn) => setCases((cs) => ({ ...cs, [id]: fn(cs[id] || emptyCase()) }));
@@ -83,7 +93,12 @@ export function StoreProvider({ children }) {
           const encList = Array.isArray(encRes) ? encRes : [];
           const matchedEnc = encList.find((e) => e.patient_id === myProfile.id) || encList[0];
 
-          if (myProfile.preferred_language) {
+          // Use the profile language only when this browser has no explicit choice saved
+          let savedLang = null;
+          try {
+            savedLang = localStorage.getItem("patientcase_lang");
+          } catch {}
+          if (myProfile.preferred_language && !savedLang) {
             const pl = myProfile.preferred_language.toLowerCase();
             if (pl.includes("hindi") || pl === "hi") setLanguage("hi");
             else if (pl.includes("marathi") || pl === "mr") setLanguage("mr");
@@ -100,6 +115,10 @@ export function StoreProvider({ children }) {
               stage: matchedEnc?.status === "completed" ? "complete" : "interview",
             },
           }));
+        } else {
+          // Never show the built-in demo patients to a patient account
+          setPatients([]);
+          setActiveId(null);
         }
         return;
       }

@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { Component, useEffect, useState } from "react";
 import apiClient from "../api/client";
+import { useT } from "../state/store";
 
 const P = {
   dashboard: "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z",
@@ -11,7 +12,8 @@ const P = {
   check: "M20 6 9 17l-5-5", alert: "M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01",
   arrow: "M7 17 17 7M7 7h10v10", reset: "M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5",
   info: "M12 8v4M12 16h.01M22 12A10 10 0 1 1 2 12a10 10 0 0 1 20 0z",
-  close: "M18 6 6 18M6 6l12 12"
+  close: "M18 6 6 18M6 6l12 12",
+  shield: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
 };
 
 export const Icon = ({ n, size = 18 }) => (
@@ -32,22 +34,25 @@ export const Logo = ({ light }) => (
 );
 
 const SRC = {
-  patient: ["Patient-reported", "t-patient"],
-  patient_reported: ["Patient-reported", "t-patient"],
-  document: ["Document-extracted", "t-doc"],
-  document_extracted_unverified: ["Document-extracted (unverified)", "t-doc"],
-  system: ["System-generated", "t-sys"],
-  verified: ["Clinician-verified", "t-ver"],
-  doctor_verified: ["Doctor-verified", "t-ver"],
-  missing_unknown: ["Not provided / unknown", "t-warn"],
+  patient: ["srcPatient", "t-patient"],
+  patient_reported: ["srcPatient", "t-patient"],
+  document: ["srcDocument", "t-doc"],
+  document_extracted_unverified: ["srcDocumentUnverified", "t-doc"],
+  system: ["srcSystem", "t-sys"],
+  verified: ["srcVerified", "t-ver"],
+  doctor_verified: ["srcDoctorVerified", "t-ver"],
+  missing_unknown: ["srcMissing", "t-warn"],
 };
 
-export const Source = ({ s }) => (
-  <span className={`tag ${SRC[s]?.[1] || "t-sys"}`}>
-    {s === "verified" && <Icon n="check" size={12} />}
-    {SRC[s]?.[0] || s}
-  </span>
-);
+export const Source = ({ s }) => {
+  const t = useT();
+  return (
+    <span className={`tag ${SRC[s]?.[1] || "t-sys"}`}>
+      {s === "verified" && <Icon n="check" size={12} />}
+      {SRC[s] ? t(SRC[s][0]) : s}
+    </span>
+  );
+};
 
 export const Tag = ({ kind = "sys", children }) => <span className={`tag t-${kind}`}>{children}</span>;
 
@@ -59,11 +64,25 @@ const STATUS = {
   Registered: "sys",
 };
 
-export const StatusTag = ({ s }) => <Tag kind={STATUS[s] || "sys"}>{s}</Tag>;
+// statusOf() returns English status values; these are their translation keys
+export const STATUS_KEYS = {
+  All: "stAll",
+  "Needs review": "stNeedsReview",
+  "Ready for review": "stReadyForReview",
+  Finalized: "stFinalized",
+  "In interview": "stInInterview",
+  Registered: "stRegistered",
+};
 
-export const Proto = ({ children = "Prototype demonstration: simulated" }) => (
-  <span className="proto">{children}</span>
-);
+export const StatusTag = ({ s }) => {
+  const t = useT();
+  return <Tag kind={STATUS[s] || "sys"}>{STATUS_KEYS[s] ? t(STATUS_KEYS[s]) : s}</Tag>;
+};
+
+export const Proto = ({ children }) => {
+  const t = useT();
+  return <span className="proto">{children ?? t("protoDefault")}</span>;
+};
 
 export function Ring({ value, size = 120, stroke = 12, label }) {
   const r = (size - stroke) / 2;
@@ -108,7 +127,10 @@ export const Empty = ({ title, text, action }) => (
 /**
  * Loading Spinner Primitive
  */
-export const Spinner = ({ size = 20, text = "Loading..." }) => (
+export const Spinner = ({ size = 20, text }) => {
+  const t = useT();
+  if (text === undefined) text = t("loading");
+  return (
   <div className="spinner-container" role="status" aria-live="polite">
     <svg className="spinner-svg" width={size} height={size} viewBox="0 0 24 24" fill="none">
       <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
@@ -116,17 +138,23 @@ export const Spinner = ({ size = 20, text = "Loading..." }) => (
     </svg>
     {text && <span className="small soft">{text}</span>}
   </div>
-);
+  );
+};
 
 /**
  * Empty State Primitive
  */
 export const EmptyState = ({
-  title = "No data found",
-  text = "There are no records to display.",
+  title,
+  text,
+  message,
   action = null,
   icon = "doc",
-}) => (
+}) => {
+  const t = useT();
+  title = title ?? t("noDataFound");
+  text = text ?? message ?? t("noRecords");
+  return (
   <div className="card empty" role="region" aria-label={title}>
     <div className="empty-icon">
       <Icon n={icon} size={30} />
@@ -135,34 +163,39 @@ export const EmptyState = ({
     <p className="soft">{text}</p>
     {action && <div className="mt">{action}</div>}
   </div>
-);
+  );
+};
 
 /**
  * Error Banner Primitive with optional retry action
  */
 export const ErrorBanner = ({
-  title = "An error occurred",
+  title,
   message = "Please check your network connection or try again.",
   onRetry = null,
-}) => (
+}) => {
+  const t = useT();
+  return (
   <div className="banner bad error-banner" role="alert">
     <Icon n="alert" size={20} />
     <div>
-      <b>{title}</b>
+      <b>{title ?? t("errorOccurred")}</b>
       {message && <p className="small" style={{ margin: "2px 0 0" }}>{message}</p>}
     </div>
     {onRetry && (
       <button className="btn sm out" onClick={onRetry} type="button">
-        Retry
+        {t("retry")}
       </button>
     )}
   </div>
-);
+  );
+};
 
 /**
  * Toast Notification Primitive
  */
 export const Toast = ({ toast, onDismiss }) => {
+  const t = useT();
   if (!toast) return null;
   const isObj = typeof toast === "object";
   const message = isObj ? toast.message : toast;
@@ -176,7 +209,7 @@ export const Toast = ({ toast, onDismiss }) => {
         <button
           onClick={onDismiss}
           style={{ background: "none", border: "none", color: "inherit", padding: 0, marginLeft: 8, cursor: "pointer", display: "grid", placeItems: "center" }}
-          aria-label="Dismiss notification"
+          aria-label={t("dismissNotification")}
         >
           <Icon n="close" size={14} />
         </button>
@@ -189,16 +222,19 @@ export const Toast = ({ toast, onDismiss }) => {
  * Mandatory Clinical Boundary Notice
  * "Prototype supporting clinician review — not a diagnostic tool"
  */
-export const ClinicalNotice = () => (
-  <div className="clinical-boundary-notice" role="note" aria-label="Clinical boundary notice">
-    <div className="notice-content">
-      <span className="notice-badge">CLINICAL NOTICE</span>
-      <span className="notice-text">
-        <strong>Prototype supporting clinician review — not a diagnostic tool.</strong> This application collects and organizes preliminary patient information. It does not diagnose, prescribe, recommend treatment, or calculate clinical risk. All findings require independent clinician verification.
-      </span>
+export const ClinicalNotice = () => {
+  const t = useT();
+  return (
+    <div className="clinical-boundary-notice" role="note" aria-label="Clinical boundary notice">
+      <div className="notice-content">
+        <span className="notice-badge">{t("clinicalNoticeBadge")}</span>
+        <span className="notice-text">
+          <strong>{t("clinicalNoticeStrong")}</strong> {t("clinicalNoticeText")}
+        </span>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 /**
  * Offline Workstation Banner Primitive (Milestone M11 / FR-13)
@@ -213,6 +249,7 @@ export function OfflineBanner({ forceOffline = false, onDismiss = null }) {
     return true;
   });
   const [dismissed, setDismissed] = useState(false);
+  const t = useT();
 
   useEffect(() => {
     const handleOnline = () => { setIsOnline(true); setDismissed(false); };
@@ -238,14 +275,14 @@ export function OfflineBanner({ forceOffline = false, onDismiss = null }) {
       <div className="offline-banner-content">
         <span className="offline-badge">OFFLINE WORKSTATION</span>
         <span className="offline-text">
-          <strong>Local Offline Mode Active.</strong> Operating on local clinic workstation with local SQLite database. All patient data, interview answers, and OCR extractions are safely saved to this device. (Remote cloud sync unavailable).
+          <strong>{t("offlineStrong")}</strong> {t("offlineText")}
         </span>
       </div>
       <button
         type="button"
         className="offline-dismiss-btn"
         onClick={handleDismiss}
-        aria-label="Dismiss offline banner"
+        aria-label={t("dismissOfflineBanner")}
       >
         Dismiss
       </button>
@@ -258,6 +295,7 @@ export function OfflineBanner({ forceOffline = false, onDismiss = null }) {
  * Displays real-time API and DB connectivity status in the app layout.
  */
 export function HealthIndicator() {
+  const t = useT();
   const [health, setHealth] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -300,10 +338,10 @@ export function HealthIndicator() {
   const isHealthy = health?.status === "healthy" && health?.database === "connected";
   const stateClass = loading ? "busy" : isHealthy ? "healthy" : "offline";
   const title = loading
-    ? "Checking backend health..."
+    ? t("checkingHealth")
     : isHealthy
     ? `Local Workstation: ${health?.service} (${health?.environment}) | DB: ${health?.database} (Local SQLite)`
-    : `Backend Offline or Degraded: ${error || health?.database || "Unreachable"}`;
+    : `${t("backendDegraded")}: ${error || health?.database || "Unreachable"}`;
 
   return (
     <div
@@ -317,15 +355,15 @@ export function HealthIndicator() {
       <span className="health-dot" />
       <span className="health-label">
         {loading
-          ? "Checking API..."
+          ? t("checkingApi")
           : isHealthy
-          ? (isOnline ? "API Online (Local)" : "Local Offline DB")
-          : "API Offline"}
+          ? (isOnline ? t("apiOnline") : t("localOfflineDb"))
+          : t("apiOffline")}
       </span>
       <button
         type="button"
         className="health-refresh-btn"
-        aria-label="Refresh backend health status"
+        aria-label={t("refreshHealth")}
         onClick={(e) => { e.stopPropagation(); fetchHealth(); }}
       >
         <Icon n="reset" size={12} />
@@ -335,4 +373,38 @@ export function HealthIndicator() {
 }
 
 export const LoadingSpinner = Spinner;
+
+/**
+ * Page-level error boundary: a rendering error shows a recoverable message
+ * instead of blanking the whole application.
+ */
+function PageErrorFallback({ onRetry }) {
+  const t = useT();
+  return (
+    <div className="card empty" role="alert">
+      <h2>{t("pageErrorTitle")}</h2>
+      <p className="soft">{t("pageErrorText")}</p>
+      <button className="btn primary" type="button" onClick={onRetry}>
+        {t("retry")}
+      </button>
+    </div>
+  );
+}
+
+export class PageErrorBoundary extends Component {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error, info) {
+    console.error("Page render failed:", error, info?.componentStack);
+  }
+
+  render() {
+    if (this.state.failed) return <PageErrorFallback onRetry={() => this.setState({ failed: false })} />;
+    return this.props.children;
+  }
+}
 

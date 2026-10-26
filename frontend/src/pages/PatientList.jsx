@@ -1,12 +1,13 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { useStore } from "../state/store";
 import { completeness, statusOf, openFlags } from "../utils/engine";
-import { Empty, StatusTag, Spinner, Icon } from "../components/ui";
+import { Empty, StatusTag, Spinner, Icon, STATUS_KEYS } from "../components/ui";
+import { fmtT } from "../utils/i18n";
 
 const FILTERS = ["All", "Registered", "In interview", "Needs review", "Ready for review", "Finalized"];
 
 export default function PatientList({ go }) {
-  const { patients, cases, query, setQuery, setActiveId, loading, refreshPatients } = useStore();
+  const { patients, cases, query, setQuery, setActiveId, loading, refreshPatients, t } = useStore();
   const [flt, setFlt] = useState("All");
 
   const q = (query || "").trim().toLowerCase();
@@ -35,24 +36,24 @@ export default function PatientList({ go }) {
     <>
       <div className="head">
         <div>
-          <h1>Patients</h1>
+          <h1>{t("patients")}</h1>
           <p className="soft">
-            {patients.length} verified records. Search by name, ID, or chief complaint.
+            {fmtT(t("patientsSubtitle"), { n: patients.length })}
           </p>
         </div>
         <div className="actions">
-          <button className="btn out sm" onClick={refreshPatients} disabled={loading} title="Refresh patients from backend">
-            <Icon n="reset" size={14} /> Refresh
+          <button className="btn out sm" onClick={refreshPatients} disabled={loading} title={t("refreshPatientsTitle")}>
+            <Icon n="reset" size={14} /> {t("refresh")}
           </button>
           <input
             className="plain"
-            placeholder="Search patients..."
+            placeholder={t("searchShort")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            aria-label="Search patients"
+            aria-label={t("searchPatients")}
           />
           <button className="btn primary" onClick={() => go("register")}>
-            <Icon n="plus" size={14} /> Register patient
+            <Icon n="plus" size={14} /> {t("register")}
           </button>
         </div>
       </div>
@@ -64,26 +65,26 @@ export default function PatientList({ go }) {
             className={`chip ${flt === f ? "on" : ""}`}
             onClick={() => setFlt(f)}
           >
-            {f}
+            {t(STATUS_KEYS[f])}
           </button>
         ))}
       </div>
 
       {loading && patients.length === 0 ? (
         <div style={{ padding: "3rem", display: "flex", justifyContent: "center" }}>
-          <Spinner text="Loading patient records from backend..." />
+          <Spinner text={t("loadingPatients")} />
         </div>
       ) : rows.length === 0 ? (
         <Empty
-          title="No patients found"
-          text="Try a different search term or filter, or register a new patient."
+          title={t("noPatientsFound")}
+          text={t("noPatientsText")}
           action={
             <div className="actions">
               <button className="btn out" onClick={() => { setQuery(""); setFlt("All"); }}>
-                Clear filters
+                {t("clearFilters")}
               </button>
               <button className="btn primary" onClick={() => go("register")}>
-                Register patient
+                {t("register")}
               </button>
             </div>
           }
@@ -93,12 +94,12 @@ export default function PatientList({ go }) {
           <table>
             <thead>
               <tr>
-                <th>Patient</th>
-                <th>Chief Complaint</th>
-                <th>Status</th>
-                <th>Completeness</th>
-                <th>Open flags</th>
-                <th style={{ textAlign: "right" }}>Actions</th>
+                <th>{t("colPatient")}</th>
+                <th>{t("colComplaint")}</th>
+                <th>{t("colStatus")}</th>
+                <th>{t("colCompleteness")}</th>
+                <th>{t("colOpenFlags")}</th>
+                <th style={{ textAlign: "right" }}>{t("colActions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -107,14 +108,14 @@ export default function PatientList({ go }) {
                   <td>
                     <b>{r.p.name}</b>
                     <p className="small soft">
-                      {r.p.id} &bull; {r.p.age} yrs &bull; {r.p.gender} &bull; {r.p.language}
+                      {r.p.id} &bull; {r.p.age ? `${r.p.age} ${t("yrs")}` : t("ageNotSpecified")} &bull; {r.p.gender} &bull; {r.p.language}
                     </p>
                   </td>
                   <td>
                     {r.c.answers?.complaint ? (
                       <span>{r.c.answers.complaint}</span>
                     ) : (
-                      <span className="soft">Not yet recorded</span>
+                      <span className="soft">{t("notYetRecorded")}</span>
                     )}
                   </td>
                   <td>
@@ -122,21 +123,21 @@ export default function PatientList({ go }) {
                   </td>
                   <td>
                     {r.c.stage === "new" ? (
-                      <span className="soft">Pending</span>
+                      <span className="soft">{t("pending")}</span>
                     ) : (
                       `${completeness(r.c).total}%`
                     )}
                   </td>
                   <td>
-                    {r.c.stage === "complete" ? openFlags(r.c).length : <span className="soft">None</span>}
+                    {r.c.stage === "complete" ? openFlags(r.c).length : <span className="soft">{t("none")}</span>}
                   </td>
                   <td className="end">
                     <button className="btn out sm" onClick={() => act(r)}>
                       {r.c.stage === "complete"
-                        ? "Open review"
+                        ? t("openReview")
                         : r.c.stage === "new"
-                        ? "Start interview"
-                        : "Resume interview"}
+                        ? t("startInterviewShort")
+                        : t("resumeInterviewShort")}
                     </button>
                   </td>
                 </tr>

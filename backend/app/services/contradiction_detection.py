@@ -75,7 +75,12 @@ async def detect_contradictions(encounter_id: int, db: AsyncSession) -> List[Con
 
     for doc in docs:
         extracted = doc.extracted_fields or {}
-        medications_raw = extracted.get("medications", [])
+        # Extractions may store medications as plain names or as {"name": ..., "dose": ...} dicts
+        medications_raw = [
+            (m.get("name") or m.get("drug") or "") if isinstance(m, dict) else str(m)
+            for m in (extracted.get("medications") or [])
+        ]
+        medications_raw = [m for m in medications_raw if m.strip()]
         med_details = extracted.get("medication_details", [])
         doc_allergies = extracted.get("allergies", [])
         doc_confidence = doc.extraction_confidence or 0.0

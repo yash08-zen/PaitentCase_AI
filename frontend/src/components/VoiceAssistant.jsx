@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Icon, Spinner } from "./ui";
 import apiClient from "../api/client";
+import { useT } from "../state/store";
 
 const LOCALES = {
   en: "en-IN",
@@ -15,6 +16,7 @@ export default function VoiceAssistant({
   onTranscriptConfirmed,
   isSubmitting = false,
 }) {
+  const t = useT();
   const [isListening, setIsListening] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [recognitionResult, setRecognitionResult] = useState(null);
@@ -198,7 +200,7 @@ export default function VoiceAssistant({
           aria-label="Listen to question spoken audio"
         >
           <Icon n="chat" size={14} />
-          {isPlayingAudio ? "Playing question..." : "Listen question"}
+          {isPlayingAudio ? t("playingQuestion") : t("listenQuestion")}
         </button>
 
         {!isListening ? (
@@ -210,7 +212,7 @@ export default function VoiceAssistant({
             aria-label="Start voice input recording"
           >
             <Icon n="check" size={14} />
-            Voice answer
+            {t("voiceAnswer")}
           </button>
         ) : (
           <button
@@ -221,14 +223,14 @@ export default function VoiceAssistant({
             aria-label="Stop recording"
           >
             <span className="health-dot offline" style={{ animation: "pulse 0.8s infinite" }} />
-            Listening... (Stop)
+            {t("listeningStop")}
           </button>
         )}
       </div>
 
       {isParsing && (
         <div style={{ marginTop: 8 }}>
-          <Spinner size={16} text="Analyzing spoken answer..." />
+          <Spinner size={16} text={t("analyzingSpeech")} />
         </div>
       )}
 
@@ -252,33 +254,33 @@ export default function VoiceAssistant({
       {recognitionResult && (
         <div className="voice-confirmation-card" role="region" aria-label="Spoken Answer Confirmation">
           <div className="voice-confirmation-header" style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
-            <b>Verify Spoken Answer</b>
+            <b>{t("verifySpoken")}</b>
             {recognitionResult.is_code_mixed && (
               <span className="tag t-info" style={{ fontSize: "0.72rem", background: "#ebf8ff", color: "#2b6cb0", borderColor: "#bee3f8" }}>
-                🌐 Code-Mixed ({recognitionResult.detected_dialect})
+                🌐 {t("codeMixed")} ({recognitionResult.detected_dialect})
               </span>
             )}
             {recognitionResult.requires_confirmation && (
               <span className="tag t-warn" style={{ fontSize: "0.72rem" }}>
-                Confirmation Required
+                {t("confirmationRequired")}
               </span>
             )}
           </div>
 
           <p className="small soft" style={{ margin: "4px 0" }}>
-            Heard: <em>"{recognitionResult.raw_transcript}"</em>
+            {t("heard")}: <em>"{recognitionResult.raw_transcript}"</em>
           </p>
 
           <p style={{ margin: "6px 0", fontSize: "0.92rem" }}>
-            Mapped Answer: <strong>{recognitionResult.parsed_value}</strong>
+            {t("mappedAnswer")}: <strong>{recognitionResult.parsed_value}</strong>
             {recognitionResult.normalized_english && recognitionResult.normalized_english !== recognitionResult.parsed_value && (
-              <span className="small soft"> (Clinical English: {recognitionResult.normalized_english})</span>
+              <span className="small soft"> ({t("clinicalEnglish")}: {recognitionResult.normalized_english})</span>
             )}
           </p>
 
           {recognitionResult.confirmation_reason && (
             <p className="small" style={{ color: "#b7791f", margin: "4px 0" }}>
-              Note: {recognitionResult.confirmation_reason}
+              {t("note")}: {recognitionResult.confirmation_reason}
             </p>
           )}
 
@@ -289,7 +291,7 @@ export default function VoiceAssistant({
               onClick={handleConfirm}
               disabled={isSubmitting}
             >
-              Confirm & use answer
+              {t("confirmUseAnswer")}
             </button>
             <button
               type="button"
@@ -297,7 +299,7 @@ export default function VoiceAssistant({
               onClick={handleStartListening}
               disabled={isSubmitting}
             >
-              Re-record
+              {t("reRecord")}
             </button>
             <button
               type="button"

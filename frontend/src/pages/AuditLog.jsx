@@ -1,8 +1,12 @@
-﻿import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Icon, Spinner, EmptyState, ErrorBanner } from "../components/ui";
 import apiClient from "../api/client";
+import { useStore, useT } from "../state/store";
+import { fmtT, parseServerDate } from "../utils/i18n";
 
 export default function AuditLog() {
+  const t = useT();
+  const language = useStore()?.language || "en";
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -18,11 +22,11 @@ export default function AuditLog() {
       const data = await apiClient.get(endpoint);
       setEvents(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError(err.message || "Failed to load audit logs");
+      setError(err.message || t("loadAuditFailed"));
     } finally {
       setLoading(false);
     }
-  }, [actionFilter]);
+  }, [actionFilter, t]);
 
   useEffect(() => {
     fetchLogs();
@@ -40,23 +44,23 @@ export default function AuditLog() {
       <div className="head">
         <div>
           <span className="tag t-doc" style={{ marginBottom: "0.4rem" }}>
-            <Icon n="shield" size={13} /> Admin Security
+            <Icon n="shield" size={13} /> {t("adminSecurity")}
           </span>
-          <h2>System Audit Trail</h2>
+          <h2>{t("auditTitle")}</h2>
           <p className="soft small">
-            Tamper-evident, backend-verified record of all authentication, role access, and clinical events.
+            {t("auditSubtitle")}
           </p>
         </div>
         <div className="actions">
           <button className="btn out sm" onClick={fetchLogs} disabled={loading}>
-            <Icon n="reset" size={14} /> Refresh
+            <Icon n="reset" size={14} /> {t("refresh")}
           </button>
         </div>
       </div>
 
       <div className="card" style={{ marginBottom: "1rem" }}>
         <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
-          <span className="small soft" style={{ fontWeight: 600 }}>Filter by Action:</span>
+          <span className="small soft" style={{ fontWeight: 600 }}>{t("filterByAction")}</span>
           {["", "LOGIN_SUCCESS", "LOGIN_FAILED", "LOGOUT", "USER_REGISTERED", "PATIENT_CREATED", "ENCOUNTER_CREATED"].map((act) => (
             <button
               key={act}
@@ -64,42 +68,42 @@ export default function AuditLog() {
               onClick={() => setActionFilter(act)}
               style={{ fontSize: "0.78rem", padding: "0.25rem 0.75rem" }}
             >
-              {act === "" ? "All Events" : act}
+              {act === "" ? t("allEvents") : act}
             </button>
           ))}
         </div>
       </div>
 
-      {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
+      {error && <ErrorBanner message={error} onRetry={fetchLogs} />}
 
       <div className="card scroll">
         {loading ? (
           <div style={{ padding: "3rem", display: "flex", justifyContent: "center" }}>
-            <Spinner text="Loading audit trail from backend..." />
+            <Spinner text={t("loadingAudit")} />
           </div>
         ) : events.length === 0 ? (
           <EmptyState
-            title="No audit events found"
-            message={actionFilter ? `No events match action filter '${actionFilter}'.` : "The audit trail is currently empty."}
+            title={t("noAuditEvents")}
+            text={actionFilter ? fmtT(t("noEventsMatch"), { action: actionFilter }) : t("auditEmpty")}
             icon="doc"
           />
         ) : (
           <table>
             <thead>
               <tr>
-                <th style={{ width: "170px" }}>Timestamp (UTC)</th>
-                <th style={{ width: "160px" }}>Action</th>
-                <th style={{ width: "150px" }}>Actor</th>
-                <th style={{ width: "120px" }}>Resource</th>
-                <th>Summary / Details</th>
-                <th style={{ width: "110px" }}>IP Address</th>
+                <th style={{ width: "170px" }}>{t("colTimestamp")}</th>
+                <th style={{ width: "160px" }}>{t("colAction")}</th>
+                <th style={{ width: "150px" }}>{t("colActor")}</th>
+                <th style={{ width: "120px" }}>{t("colResource")}</th>
+                <th>{t("colDetails")}</th>
+                <th style={{ width: "110px" }}>{t("colIp")}</th>
               </tr>
             </thead>
             <tbody>
               {events.map((ev) => (
                 <tr key={ev.id}>
                   <td className="small soft">
-                    {new Date(ev.timestamp).toLocaleString(undefined, {
+                    {parseServerDate(ev.timestamp).toLocaleString(language === "en" ? "en-IN" : `${language}-IN`, {
                       year: "numeric",
                       month: "short",
                       day: "2-digit",
@@ -114,10 +118,10 @@ export default function AuditLog() {
                     </span>
                   </td>
                   <td>
-                    <b>{ev.actor_username || "anonymous"}</b>
+                    <b>{ev.actor_username || t("anonymous")}</b>
                     {ev.actor_role && (
                       <span className="small soft" style={{ display: "block" }}>
-                        Role: {ev.actor_role}
+                        {t("roleLabel")}: {ev.actor_role}
                       </span>
                     )}
                   </td>
