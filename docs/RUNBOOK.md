@@ -28,7 +28,7 @@ cd "d:\Projects\New PatientCase AI\backend"
 .\.venv312\Scripts\Activate.ps1
 pip install -r requirements.txt
 
-# 2. Environment configuration (first time)
+# 2. Environment configuration (first time) - then set LLM_PROVIDER, see section 11
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 
 # 3. Database migrations (from clean DB to current schema in one command)
@@ -76,16 +76,16 @@ Application URL: http://localhost:5173
 cd "d:\Projects\New PatientCase AI\backend"
 .\.venv312\Scripts\python.exe -m pytest -v
 ```
-Expected: **98 passed** (100% green across all backend test suites, including health, RBAC, registration, consent, idempotency, audit, adaptive interview, structured summary, real RapidOCR ONNX inference, medication discrepancy rules, doctor review persistence, rate limiting, air-gapped isolation, multilingual voice, and advanced empirical benchmarks).
+Expected: **176 passed** (the original 98 plus 78 AI-layer tests: engines, validator, scrubber, provider interface, API/RBAC, decision/audit flow, case lock, LLM-down degradation, vision path, follow-up safety filter, red-team and eval harness). Tests force `LLM_PROVIDER=mock`; no network or API key is needed.
 
 ### Frontend Tests (vitest)
 ```powershell
 cd "d:\Projects\New PatientCase AI\frontend"
 npm run test
 ```
-Expected: **75 passed across 14 test suites** (client.test.js, ui.smoke.test.jsx, auth.smoke.test.jsx, registration.smoke.test.jsx, interview.smoke.test.jsx, summary.smoke.test.jsx, documents.smoke.test.jsx, conflicts.smoke.test.jsx, dashboard_review.smoke.test.jsx, hardening_security.smoke.test.jsx, e2e_p0_workflow.smoke.test.jsx, offline_operation.smoke.test.jsx, multilingual_voice.smoke.test.jsx, advanced_benchmarks.smoke.test.jsx).
+Expected: **87 passed across 15 test files** (adds `ai_insights.smoke.test.jsx`: AI tab rendering, badges, Accept/Edit/Reject on every AI item, `not_calculable`, unavailable state, en/hi/mr key parity) (client.test.js, ui.smoke.test.jsx, auth.smoke.test.jsx, registration.smoke.test.jsx, interview.smoke.test.jsx, summary.smoke.test.jsx, documents.smoke.test.jsx, conflicts.smoke.test.jsx, dashboard_review.smoke.test.jsx, hardening_security.smoke.test.jsx, e2e_p0_workflow.smoke.test.jsx, offline_operation.smoke.test.jsx, multilingual_voice.smoke.test.jsx, advanced_benchmarks.smoke.test.jsx).
 
-**Combined Total: 173 / 173 tests passing (100% Green).**
+**Combined Total: 263 / 263 tests passing.**
 
 ---
 
@@ -216,7 +216,65 @@ PatientCase AI is engineered for local-first clinic workstation execution with z
 
 *Updated: M11 (Offline-First Workstation) — 2026-10-24.*
 
+---
 
+## 11. AI Clinical Insights Layer: Providers, Setup and Evaluation
 
+### 11.1 `.env` settings (backend/.env)
 
+| Variable | Default | Meaning |
+|---|---|---|
+| `LLM_PROVIDER` | `hosted` | `hosted` (Anthropic API), `local` (Ollama), or `mock` (offline fixtures, used by tests). |
+| `ANTHROPIC_API_KEY` | empty | Hosted mode only. Read from `.env` only; never sent to the frontend, logged or returned. |
+| `ANTHROPIC_EXTRACTION_MODEL` | `claude-haiku-5-5` | Classification, extraction, follow-ups, handwriting. |
+| `ANTHROPIC_REASONING_MODEL` | `claude-sonnet-5-5` | Considerations, treatment reference, summaries, trend sentences, questions. |
+| `OLLAMA_BASE_URL` | `http://127.0.0.1:11434/v1` | Local OpenAI-compatible endpoint. |
+| `OLLAMA_MODEL` | `llama3.2:3b` | Any ~3B instruct model that fits 4 GB VRAM. |
+| `AI_FOLLOWUPS_ENABLED` | `false` | AI-proposed, safety-filtered SOCRATES follow-ups in the interview. |
+| `LLM_TIMEOUT_SECONDS` / `LLM_MAX_RETRIES` / `LLM_MAX_TOKENS` | `30` / `3` / `4096` | Per-call timeout, retries with exponential backoff, output cap (per-task caps in `prompts.py`). |
 
+`backend/.env` is git-ignored (`.gitignore`: `.env`, `backend/.env`). Copy `backend/.env.example` and fill in values; never commit a key.
+
+### 11.2 Switching providers
+
+1. Edit `LLM_PROVIDER` in `backend/.env`.
+2. Restart uvicorn. The startup log states the mode; hosted mode prints a warning that de-identified text leaves the machine.
+3. Check `GET /api/system/llm-status` or the "AI processing: …" tag in the AI Insights tab.
+
+- **hosted** – needs `ANTHROPIC_API_KEY`. Text is de-identified before sending; images for the handwriting path are sent as-is. **Synthetic data only.** Every call writes an `LLM_EXTERNAL_CALL` audit event.
+- **local** – install Ollama, then:
+  ```powershell
+  ollama pull llama3.2:3b
+  ollama serve        # listens on 127.0.0.1:11434
+  ```
+  Reduced capability: no vision path, English-only summaries, weaker extraction. Zero external calls.
+- **mock** – deterministic offline fixtures; useful for demos without a model. Not a model: do not judge AI quality with it.
+
+If the provider is down or unconfigured, the job ends with status `unavailable`: deterministic labs, trends, scores, red flags and rule checks still run and the tab shows "AI service unavailable".
+
+### 11.3 Using the AI Insights tab
+
+Log in as `doctor`, open a case → **AI Clinical Insights** tab → choose the summary language → **Run AI Analysis**. The tab polls the job. Every AI item has Accept / Edit / Reject; decisions are audited and become `doctor_verified`. Finalizing the case locks the tab.
+
+### 11.4 Guideline library
+
+Sample passages (labelled `SAMPLE – replace with verified source`) are seeded from `backend/config/guidelines_sample.json`. To load verified sources:
+```powershell
+cd backend
+.\.venv312\Scripts\python.exe scripts\ingest_guidelines.py C:\path\to\verified_guidelines.json --replace
+```
+Same JSON format as the sample file; set `"is_sample": false` only for verified passages. The FTS5 index is rebuilt automatically.
+
+### 11.5 Trend rules
+
+Edit `backend/config/trend_rules.yaml` (per test: direction, `min_absolute_change` and/or `min_percent_change`, `time_window_days`, label). The file is marked **requires clinician review before real use**. Changes apply to the next analysis run.
+
+### 11.6 Evaluation harness
+
+```powershell
+cd backend
+.\.venv312\Scripts\python.exe -m eval.run_eval                     # mock provider, includes RapidOCR on the handwriting images
+.\.venv312\Scripts\python.exe -m eval.run_eval --no-images         # faster, skips OCR
+.\.venv312\Scripts\python.exe -m eval.run_eval --provider hosted   # real model + vision path (needs key, synthetic data)
+```
+Writes `docs/AI_EVAL_REPORT.md` and `backend/eval/results/latest.json` using a throw-away SQLite database. Every number in the report is measured in that run.

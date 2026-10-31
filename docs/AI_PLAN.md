@@ -67,3 +67,28 @@
 - Output metrics to `docs/AI_EVAL_REPORT.md`.
 - Update README.md, LIMITATIONS.md, DECISIONS.md, API_MAP.md, RUNBOOK.md, `.env.example`.
 
+
+---
+
+## Status after the gap audit (2026-10-31)
+
+An audit of the first implementation against the task found these gaps; all were fixed on branch `feature/ai-clinical-insights` (see `docs/DECISIONS.md` D-052 to D-066):
+
+| Gap found | Fix |
+|---|---|
+| `AI_EVAL_REPORT.md` contained hard-coded numbers (vision recall, latency, tokens) and red-team cases counted as passed without checks | Harness rewritten; every case runs through the real pipeline and the report is generated from measured values only |
+| Analysis ran synchronously inside the request | Background job (202 + polling, 409 on concurrent runs), idempotent re-runs |
+| No output validator: considerations stored without evidence checks; mock evidence pointed at data not in the case | Evidence catalogue + `output_validator.py` (resolvable refs, quotes, traceable numbers, definitive/injected wording) |
+| Hosted provider used raw HTTP with forced `tool_choice` (rejected by Sonnet 5.5) | Official `anthropic` SDK with structured outputs |
+| Vision path passed the wrong image keys and always failed; results were marked grounded | Fixed keys; results stored unverified with *read from handwriting, verify* |
+| NEWS2 defaulted missing oxygen/consciousness to normal; CHA₂DS₂-VASc treated "not mentioned" as "no" | Missing inputs stay missing → `not_calculable` |
+| Trend rules matched with unknown dates; series not date-sorted | Windowed rules need a known span; date-sorted series incl. earlier encounters |
+| No FTS5, no ingestion script | FTS5 index, JSON sample library, `scripts/ingest_guidelines.py` |
+| No medication reconciliation, regex cross-check, `RULE-LAB-ABNORMAL`, quality checks | Implemented as deterministic code |
+| No audit event per external call, no token logging | Per-call metadata on the job + `LLM_EXTERNAL_CALL` audit events |
+| AI follow-ups had no safety filter and leaked into other encounters | Safety filter + bank mapping + per-encounter scoping |
+| Frontend tab read fields the API never returned | Tab rebuilt against the real payload; en/hi/mr strings with a parity test |
+| Duplicate Alembic head | Chain repaired; new migration `8c9d0e1f2a3b` |
+| README / LIMITATIONS / DECISIONS / API_MAP / RUNBOOK / `.env.example` not updated | Updated |
+
+Still open: hosted-model and vision-path accuracy are not measured (needs an API key and synthetic data); the 0.70 OCR confidence gate misses confident-but-wrong handwriting (measured, documented in LIMITATIONS).
