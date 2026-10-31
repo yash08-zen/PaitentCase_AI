@@ -110,6 +110,19 @@ async def cases_needing_review(
         )
         readiness_score = summary.readiness_score if summary else None
 
+        # Rule-based priority alert (red-flag engine, not AI output)
+        red_flags = (await db.scalars(
+            select(ReviewFlag.description).where(
+                ReviewFlag.encounter_id == enc.id, ReviewFlag.flag_type == "red_flag",
+                ReviewFlag.status == "open",
+            )
+        )).all()
+        urgency = None
+        if any(d.startswith("[EMERGENCY]") for d in red_flags):
+            urgency = "EMERGENCY"
+        elif any(d.startswith("[URGENT]") for d in red_flags):
+            urgency = "URGENT"
+
         result.append(
             DashboardCaseOut(
                 encounter_id=enc.id,
@@ -123,7 +136,11 @@ async def cases_needing_review(
                 readiness_score=readiness_score,
                 doctor_notes=enc.doctor_notes,
                 reviewed_at=enc.reviewed_at,
+                urgency=urgency,
+                priority_alerts=list(red_flags)[:5],
             )
         )
+    rank = {"EMERGENCY": 0, "URGENT": 1}
+    result.sort(key=lambda c: rank.get(c.urgency, 2))
     return result
 

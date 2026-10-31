@@ -1,600 +1,289 @@
 [
   {
-    "id": 1,
-    "key": "chief_complaint",
-    "label": "Chief complaint",
-    "section": "Symptoms",
-    "group": "symptoms",
-    "order": 1,
-    "text": "What is troubling you the most today?",
-    "placeholder": "Select or type your primary symptom",
-    "help": "Choose the closest match or select Other to describe your symptom.",
-    "answer_type": "choice",
-    "choices": [
-      "Headache",
-      "Abdominal pain",
-      "Chest discomfort",
-      "Fever",
-      "Cough",
-      "Back pain",
-      "Other"
-    ],
-    "is_required": true,
-    "branching_rules": null,
-    "conditions": null,
-    "because": null,
-    "skip_why": null
+    "id": 1, "key": "chief_complaint", "label": "Reason for visit", "section": "Reason for visit", "group": "symptoms", "order": 1,
+    "text": "What is the main reason for your visit today? Please describe it in your own words.",
+    "placeholder": "e.g., burning while passing urine for 3 days, or cough with fever since Monday",
+    "help": "Write what you are feeling, where, and since when. The next questions are chosen from what you write.",
+    "answer_type": "text", "choices": null, "is_required": true, "branching_rules": null, "conditions": null,
+    "because": null, "skip_why": null
   },
   {
-    "id": 2,
-    "key": "symptom_duration",
-    "label": "Duration",
-    "section": "Symptoms",
-    "group": "symptoms",
-    "order": 2,
-    "text": "How long have you had this problem?",
-    "placeholder": null,
+    "id": 2, "key": "symptom_onset", "label": "Onset", "section": "About your problem", "group": "symptoms", "order": 2,
+    "text": "How did this problem start?", "placeholder": null, "help": "Choose the closest answer.",
+    "answer_type": "choice", "choices": ["Suddenly", "Gradually over hours or days", "Not sure"],
+    "is_required": false, "branching_rules": null, "conditions": null, "because": null, "skip_why": null
+  },
+  {
+    "id": 3, "key": "symptom_duration", "label": "Duration", "section": "About your problem", "group": "symptoms", "order": 3,
+    "text": "How long have you had this problem?", "placeholder": null,
     "help": "Approximate duration helps determine acute vs chronic presentation.",
+    "answer_type": "choice", "choices": ["Less than a day", "1 to 3 days", "4 to 7 days", "More than a week", "Months or longer"],
+    "is_required": true, "branching_rules": null, "conditions": null, "because": null, "skip_why": null
+  },
+  {
+    "id": 4, "key": "symptom_severity", "label": "Severity", "section": "About your problem", "group": "symptoms", "order": 4,
+    "text": "How severe is your discomfort right now?", "placeholder": null,
+    "help": "1 is very mild, 10 is the worst you can imagine.",
+    "answer_type": "scale", "choices": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+    "is_required": false, "branching_rules": null, "conditions": null, "because": null, "skip_why": null
+  },
+  {
+    "id": 5, "key": "symptom_course", "label": "Course", "section": "About your problem", "group": "symptoms", "order": 5,
+    "text": "Since it started, is the problem...", "placeholder": null, "help": null,
+    "answer_type": "choice", "choices": ["Getting worse", "Getting better", "About the same", "Comes and goes"],
+    "is_required": false, "branching_rules": null, "conditions": null, "because": null, "skip_why": null
+  },
+  {
+    "id": 6, "key": "symptom_triggers", "label": "What makes it better or worse", "section": "About your problem", "group": "symptoms", "order": 6,
+    "text": "Does anything make it better or worse?", "placeholder": "e.g., rest, food, movement, lying down, a medicine",
+    "help": "Leave blank if nothing changes it.",
+    "answer_type": "text", "choices": null,
+    "is_required": false, "branching_rules": null, "conditions": null, "because": null, "skip_why": null
+  },
+  {
+    "id": 7, "key": "previous_episodes", "label": "Previous episodes", "section": "About your problem", "group": "symptoms", "order": 7,
+    "text": "Have you had this same problem before?", "placeholder": null, "help": null,
+    "answer_type": "choice", "choices": ["Yes", "No", "Not sure"],
+    "is_required": false, "branching_rules": null, "conditions": null, "because": null, "skip_why": null
+  },
+
+  {
+    "id": 8, "key": "pain_location", "label": "Pain location", "section": "Pain", "group": "symptoms", "order": 10,
+    "text": "Where exactly do you feel the pain or discomfort?", "placeholder": null,
+    "help": "Choose the closest area.",
     "answer_type": "choice",
-    "choices": [
-      "Less than a day",
-      "1 to 3 days",
-      "4 to 7 days",
-      "More than a week",
-      "Months or longer"
-    ],
-    "is_required": true,
-    "branching_rules": null,
-    "conditions": null,
-    "because": null,
-    "skip_why": null
+    "choices": ["Head", "Face / jaw", "Throat / neck", "Chest", "Upper abdomen", "Lower abdomen", "Back", "Arm / shoulder", "Leg / knee / foot", "Many joints", "Other"],
+    "is_required": false, "branching_rules": {"show_if": {"question_key": "chief_complaint", "module": "pain"}}, "conditions": null,
+    "because": "You mentioned pain or discomfort", "skip_why": "Asked only when pain is mentioned"
   },
   {
-    "id": 3,
-    "key": "symptom_severity",
-    "label": "Severity (1 to 10)",
-    "section": "Symptoms",
-    "group": "symptoms",
-    "order": 3,
-    "text": "How severe is your discomfort right now?",
-    "placeholder": null,
-    "help": "1 is very mild, 10 is the worst pain imaginable.",
-    "answer_type": "scale",
-    "choices": [
-      "1",
-      "2",
-      "3",
-      "4",
-      "5",
-      "6",
-      "7",
-      "8",
-      "9",
-      "10"
-    ],
-    "is_required": false,
-    "branching_rules": null,
-    "conditions": null,
-    "because": null,
-    "skip_why": null
+    "id": 9, "key": "pain_character", "label": "Type of pain", "section": "Pain", "group": "symptoms", "order": 11,
+    "text": "How would you describe the pain?", "placeholder": null, "help": null,
+    "answer_type": "choice", "choices": ["Sharp / stabbing", "Dull / aching", "Burning", "Throbbing", "Pressing / tight", "Cramping", "Not sure"],
+    "is_required": false, "branching_rules": {"show_if": {"question_key": "chief_complaint", "module": "pain"}}, "conditions": null,
+    "because": "You mentioned pain or discomfort", "skip_why": "Asked only when pain is mentioned"
   },
   {
-    "id": 4,
-    "key": "pain_location",
-    "label": "Pain location",
-    "section": "Symptoms",
-    "group": "symptoms",
-    "order": 4,
-    "text": "Where exactly is the pain or discomfort located?",
-    "placeholder": "e.g., Upper abdomen, Left chest, Forehead",
-    "help": "Specific anatomical location provides key clinical context.",
-    "answer_type": "choice",
-    "choices": [
-      "Upper abdomen",
-      "Lower right abdomen",
-      "Lower left abdomen",
-      "Around the navel",
-      "Left chest",
-      "Center chest",
-      "Forehead / temples",
-      "Entire head",
-      "Lower back",
-      "Other location"
-    ],
-    "is_required": false,
-    "branching_rules": {
-      "show_if": {
-        "question_key": "chief_complaint",
-        "in": [
-          "Abdominal pain",
-          "Chest discomfort",
-          "Headache",
-          "Back pain"
-        ]
-      }
-    },
-    "conditions": [
-      {
-        "question_key": "chief_complaint",
-        "answer_contains": "pain"
-      },
-      {
-        "question_key": "chief_complaint",
-        "answer_contains": "discomfort"
-      },
-      {
-        "question_key": "chief_complaint",
-        "answer_contains": "headache"
-      }
-    ],
-    "because": "You reported pain or physical discomfort",
-    "skip_why": "Only asked for pain or discomfort complaints"
+    "id": 10, "key": "pain_radiation", "label": "Pain spreading", "section": "Pain", "group": "symptoms", "order": 12,
+    "text": "Does the pain spread to any other part of the body?", "placeholder": null, "help": null,
+    "answer_type": "choice", "choices": ["Yes", "No", "Not sure"],
+    "is_required": false, "branching_rules": {"show_if": {"question_key": "chief_complaint", "module": "pain"}}, "conditions": null,
+    "because": "You mentioned pain or discomfort", "skip_why": "Asked only when pain is mentioned"
   },
   {
-    "id": 5,
-    "key": "worse_with_activity",
-    "label": "Worse with activity",
-    "section": "Symptoms",
-    "group": "symptoms",
-    "order": 5,
-    "text": "Does the discomfort increase with physical exertion or activity?",
-    "placeholder": null,
-    "help": "Evaluates exertional exacerbation for chest or musculoskeletal symptoms.",
-    "answer_type": "choice",
-    "choices": [
-      "Yes",
-      "No",
-      "Not sure"
-    ],
-    "is_required": false,
-    "branching_rules": {
-      "show_if": {
-        "question_key": "chief_complaint",
-        "in": [
-          "Chest discomfort",
-          "Back pain"
-        ]
-      }
-    },
-    "conditions": [
-      {
-        "question_key": "chief_complaint",
-        "answer_contains": "chest"
-      },
-      {
-        "question_key": "chief_complaint",
-        "answer_contains": "back"
-      }
-    ],
-    "because": "You reported chest discomfort or physical strain",
-    "skip_why": "Only asked for chest discomfort or physical strain"
+    "id": 11, "key": "worse_with_activity", "label": "Worse with exertion", "section": "Chest and heart", "group": "symptoms", "order": 13,
+    "text": "Does it get worse with physical effort, like walking or climbing stairs?", "placeholder": null, "help": null,
+    "answer_type": "choice", "choices": ["Yes", "No", "Not sure"],
+    "is_required": false, "branching_rules": {"show_if": {"question_key": "chief_complaint", "module": "chest"}}, "conditions": null,
+    "because": "You mentioned your chest, heart or breathing", "skip_why": "Asked only for chest, heart or breathing complaints"
   },
   {
-    "id": 6,
-    "key": "symptom_frequency",
-    "label": "Frequency",
-    "section": "Symptoms",
-    "group": "symptoms",
-    "order": 6,
-    "text": "How frequently do you experience this symptom?",
-    "placeholder": null,
-    "help": "Temporal pattern helps distinguish episodic vs continuous issues.",
-    "answer_type": "choice",
-    "choices": [
-      "Constant",
-      "Daily episodes",
-      "A few times a week",
-      "Intermittent / Occasional"
-    ],
-    "is_required": false,
-    "branching_rules": {
-      "show_if": {
-        "question_key": "chief_complaint",
-        "in": [
-          "Headache",
-          "Abdominal pain",
-          "Cough"
-        ]
-      }
-    },
-    "conditions": [
-      {
-        "question_key": "chief_complaint",
-        "answer_contains": "headache"
-      },
-      {
-        "question_key": "chief_complaint",
-        "answer_contains": "abdominal"
-      },
-      {
-        "question_key": "chief_complaint",
-        "answer_contains": "cough"
-      }
-    ],
-    "because": "Important for evaluating recurring episodic complaints",
-    "skip_why": "Only evaluated for recurring complaints"
-  },
-  {
-    "id": 7,
-    "key": "associated_symptoms",
-    "label": "Associated symptoms",
-    "section": "Symptoms",
-    "group": "symptoms",
-    "order": 7,
-    "text": "Do you have any of these additional symptoms along with it?",
-    "placeholder": null,
-    "help": "Select all that apply.",
+    "id": 12, "key": "chest_symptoms", "label": "Chest-related symptoms", "section": "Chest and heart", "group": "symptoms", "order": 14,
+    "text": "Do you have any of these?", "placeholder": null, "help": "Select all that apply.",
     "answer_type": "multi",
-    "choices": [
-      "Nausea",
-      "Dizziness",
-      "Shortness of breath",
-      "Sweating",
-      "Fever",
-      "Fatigue",
-      "None"
-    ],
-    "is_required": false,
-    "branching_rules": {
-      "show_if": {
-        "question_key": "chief_complaint",
-        "in": [
-          "Chest discomfort",
-          "Headache",
-          "Abdominal pain"
-        ]
-      }
-    },
-    "conditions": [
-      {
-        "question_key": "chief_complaint",
-        "answer_contains": "chest"
-      },
-      {
-        "question_key": "chief_complaint",
-        "answer_contains": "headache"
-      },
-      {
-        "question_key": "chief_complaint",
-        "answer_contains": "abdominal"
-      }
-    ],
-    "because": "Commonly associated with pain and systemic complaints",
-    "skip_why": "Not required for this complaint type"
+    "choices": ["Shortness of breath", "Sweating", "Pain spreading to arm, jaw or back", "Racing or irregular heartbeat", "Fainting or near-fainting", "Swelling of feet", "None"],
+    "is_required": false, "branching_rules": {"show_if": {"question_key": "chief_complaint", "module": "chest"}}, "conditions": null,
+    "because": "You mentioned your chest, heart or breathing", "skip_why": "Asked only for chest, heart or breathing complaints"
   },
   {
-    "id": 8,
-    "key": "has_fever",
-    "label": "Fever status",
-    "section": "Symptoms",
-    "group": "symptoms",
-    "order": 8,
-    "text": "Have you had a fever or elevated body temperature?",
-    "placeholder": null,
-    "help": "Checks for secondary febrile response when fever is not chief complaint.",
-    "answer_type": "choice",
-    "choices": [
-      "Yes",
-      "No",
-      "Not measured"
-    ],
-    "is_required": false,
-    "branching_rules": {
-      "skip_if": {
-        "question_key": "chief_complaint",
-        "equals": "Fever"
-      }
-    },
-    "conditions": null,
-    "because": "Your primary complaint is not fever",
-    "skip_why": "Fever was already indicated as your primary complaint"
+    "id": 13, "key": "cough_type", "label": "Cough", "section": "Breathing", "group": "symptoms", "order": 15,
+    "text": "Do you have a cough?", "placeholder": null, "help": null,
+    "answer_type": "choice", "choices": ["Dry cough", "Cough with phlegm", "Cough with blood", "No cough"],
+    "is_required": false, "branching_rules": {"show_if": {"question_key": "chief_complaint", "module": "respiratory"}}, "conditions": null,
+    "because": "You mentioned a cough, cold, throat or breathing problem", "skip_why": "Asked only for breathing complaints"
   },
   {
-    "id": 9,
-    "key": "has_chronic_conditions",
-    "label": "Chronic conditions",
-    "section": "Medical history",
-    "group": "history",
-    "order": 9,
-    "text": "Do you have any long-term or chronic medical conditions?",
-    "placeholder": null,
-    "help": "e.g., diabetes, hypertension, asthma, thyroid disorder",
-    "answer_type": "choice",
-    "choices": [
-      "Yes",
-      "No",
-      "Not sure"
-    ],
-    "is_required": true,
-    "branching_rules": null,
-    "conditions": null,
-    "because": null,
-    "skip_why": null
+    "id": 14, "key": "breathlessness_level", "label": "Breathlessness", "section": "Breathing", "group": "symptoms", "order": 16,
+    "text": "Do you feel breathless?", "placeholder": null, "help": null,
+    "answer_type": "choice", "choices": ["No breathlessness", "Only on exertion", "Even at rest"],
+    "is_required": false, "branching_rules": {"show_if": {"question_key": "chief_complaint", "module": "respiratory"}}, "conditions": null,
+    "because": "You mentioned a cough, cold, throat or breathing problem", "skip_why": "Asked only for breathing complaints"
   },
   {
-    "id": 10,
-    "key": "chronic_conditions_detail",
-    "label": "Condition details",
-    "section": "Medical history",
-    "group": "history",
-    "order": 10,
-    "text": "Which chronic conditions have you been diagnosed with?",
-    "placeholder": null,
-    "help": "Select all that apply or mention others.",
+    "id": 15, "key": "fever_highest_temp", "label": "Highest temperature", "section": "Fever", "group": "symptoms", "order": 17,
+    "text": "If you measured it, what was the highest temperature?", "placeholder": "e.g., 101 °F or 38.5 °C",
+    "help": "Leave blank if you did not measure it.",
+    "answer_type": "text", "choices": null,
+    "is_required": false, "branching_rules": {"show_if": {"question_key": "chief_complaint", "module": "fever"}}, "conditions": null,
+    "because": "You mentioned fever", "skip_why": "Asked only when fever is mentioned"
+  },
+  {
+    "id": 16, "key": "fever_pattern", "label": "Fever pattern", "section": "Fever", "group": "symptoms", "order": 18,
+    "text": "How does the fever behave?", "placeholder": null, "help": null,
+    "answer_type": "choice", "choices": ["Continuous", "Comes and goes with chills or shivering", "Mostly in the evening or night", "Not sure"],
+    "is_required": false, "branching_rules": {"show_if": {"question_key": "chief_complaint", "module": "fever"}}, "conditions": null,
+    "because": "You mentioned fever", "skip_why": "Asked only when fever is mentioned"
+  },
+  {
+    "id": 17, "key": "gi_symptoms", "label": "Stomach and bowel symptoms", "section": "Stomach", "group": "symptoms", "order": 19,
+    "text": "Do you have any of these?", "placeholder": null, "help": "Select all that apply.",
     "answer_type": "multi",
-    "choices": [
-      "Hypertension",
-      "Diabetes (Type 1 or 2)",
-      "Asthma / Respiratory",
-      "Thyroid disorder",
-      "Heart disease",
-      "Other"
-    ],
-    "is_required": false,
-    "branching_rules": {
-      "show_if": {
-        "question_key": "has_chronic_conditions",
-        "equals": "Yes"
-      }
-    },
-    "conditions": [
-      {
-        "question_key": "has_chronic_conditions",
-        "answer_contains": "yes"
-      }
-    ],
-    "because": "You reported having chronic medical conditions",
-    "skip_why": "You reported no chronic medical conditions"
+    "choices": ["Vomiting", "Loose stools / diarrhoea", "Constipation", "Blood in vomit or stool", "Black stools", "Loss of appetite", "Bloating or gas", "None"],
+    "is_required": false, "branching_rules": {"show_if": {"question_key": "chief_complaint", "module": "gi"}}, "conditions": null,
+    "because": "You mentioned your stomach or digestion", "skip_why": "Asked only for stomach complaints"
   },
   {
-    "id": 11,
-    "key": "current_medications",
-    "label": "Current medications",
-    "section": "Medication",
-    "group": "medications",
-    "order": 11,
-    "text": "Are you currently taking any prescription medicines, supplements, or regular tablets?",
-    "placeholder": null,
-    "help": "Include regular prescription tablets, inhalers, insulin, or vitamins.",
-    "answer_type": "choice",
-    "choices": [
-      "Yes",
-      "No"
-    ],
-    "is_required": true,
-    "branching_rules": null,
-    "conditions": null,
-    "because": null,
-    "skip_why": null
+    "id": 18, "key": "food_related", "label": "Related to food", "section": "Stomach", "group": "symptoms", "order": 20,
+    "text": "Is the problem related to eating or to certain foods?", "placeholder": null, "help": null,
+    "answer_type": "choice", "choices": ["Yes", "No", "Not sure"],
+    "is_required": false, "branching_rules": {"show_if": {"question_key": "chief_complaint", "module": "gi"}}, "conditions": null,
+    "because": "You mentioned your stomach or digestion", "skip_why": "Asked only for stomach complaints"
   },
   {
-    "id": 12,
-    "key": "medication_details",
-    "label": "Medicine name(s)",
-    "section": "Medication",
-    "group": "medications",
-    "order": 12,
-    "text": "Which medicines are you taking?",
-    "placeholder": "e.g., Metformin, Amlodipine, Paracetamol",
-    "help": "If more than one, separate with commas.",
-    "answer_type": "text",
-    "choices": null,
-    "is_required": false,
-    "branching_rules": {
-      "show_if": {
-        "question_key": "current_medications",
-        "equals": "Yes"
-      }
-    },
-    "conditions": [
-      {
-        "question_key": "current_medications",
-        "answer_contains": "yes"
-      }
-    ],
-    "because": "You stated you are currently taking medications",
-    "skip_why": "You stated you take no medications"
+    "id": 19, "key": "neuro_symptoms", "label": "Head and nerve symptoms", "section": "Head and nerves", "group": "symptoms", "order": 21,
+    "text": "Do you have any of these?", "placeholder": null, "help": "Select all that apply.",
+    "answer_type": "multi",
+    "choices": ["Blurred or double vision", "Weakness of face, arm or leg", "Difficulty speaking", "Numbness or tingling", "Fainting or blackout", "Fits / seizures", "Vomiting", "None"],
+    "is_required": false, "branching_rules": {"show_if": {"question_key": "chief_complaint", "module": "neuro"}}, "conditions": null,
+    "because": "You mentioned headache, dizziness, weakness or numbness", "skip_why": "Asked only for head or nerve complaints"
   },
   {
-    "id": 13,
-    "key": "medication_dosage",
-    "label": "Dose and frequency",
-    "section": "Medication",
-    "group": "medications",
-    "order": 13,
-    "text": "What is the dose, and how often do you take it?",
-    "placeholder": "e.g., 500 mg, twice daily after meals",
-    "help": "Dose and schedule are crucial for medication reconciliation.",
-    "answer_type": "text",
-    "choices": null,
-    "is_required": false,
-    "branching_rules": {
-      "show_if": {
-        "question_key": "current_medications",
-        "equals": "Yes"
-      }
-    },
-    "conditions": [
-      {
-        "question_key": "current_medications",
-        "answer_contains": "yes"
-      }
-    ],
-    "because": "Helps clinical review and prescription cross-checking",
-    "skip_why": "You stated you take no medications"
+    "id": 20, "key": "urinary_symptoms", "label": "Urinary symptoms", "section": "Urine", "group": "symptoms", "order": 22,
+    "text": "Do you have any of these?", "placeholder": null, "help": "Select all that apply.",
+    "answer_type": "multi",
+    "choices": ["Burning while passing urine", "Passing urine very often", "Blood in urine", "Passing less urine", "Pain in the side or lower back", "Fever with chills", "None"],
+    "is_required": false, "branching_rules": {"show_if": {"question_key": "chief_complaint", "module": "urinary"}}, "conditions": null,
+    "because": "You mentioned urine or kidneys", "skip_why": "Asked only for urinary complaints"
   },
   {
-    "id": 14,
-    "key": "has_allergies",
-    "label": "Allergies",
-    "section": "Allergies",
-    "group": "allergies",
-    "order": 14,
-    "text": "Do you have any known allergies to medicines, food, or other substances?",
-    "placeholder": null,
-    "help": "Essential for patient safety during treatment planning.",
-    "answer_type": "choice",
-    "choices": [
-      "Yes",
-      "No",
-      "Not sure"
-    ],
-    "is_required": true,
-    "branching_rules": null,
-    "conditions": null,
-    "because": null,
-    "skip_why": null
+    "id": 21, "key": "skin_details", "label": "Skin details", "section": "Skin", "group": "symptoms", "order": 23,
+    "text": "Do you have any of these?", "placeholder": null, "help": "Select all that apply.",
+    "answer_type": "multi",
+    "choices": ["Itching", "Spreading quickly", "Blisters", "Pus or discharge", "Swelling of lips, face or throat", "Started after a new medicine or food", "None"],
+    "is_required": false, "branching_rules": {"show_if": {"question_key": "chief_complaint", "module": "skin"}}, "conditions": null,
+    "because": "You mentioned a skin problem", "skip_why": "Asked only for skin complaints"
   },
   {
-    "id": 15,
-    "key": "allergy_details",
-    "label": "Allergen(s)",
-    "section": "Allergies",
-    "group": "allergies",
-    "order": 15,
-    "text": "What substance or medicine are you allergic to?",
-    "placeholder": "e.g., Penicillin, Sulfa drugs, Peanuts, Aspirin",
-    "help": "Please name all substances you have reacted to.",
-    "answer_type": "text",
-    "choices": null,
-    "is_required": false,
-    "branching_rules": {
-      "show_if": {
-        "question_key": "has_allergies",
-        "equals": "Yes"
-      }
-    },
-    "conditions": [
-      {
-        "question_key": "has_allergies",
-        "answer_contains": "yes"
-      }
-    ],
-    "because": "You reported having allergies",
-    "skip_why": "You reported no known allergies"
+    "id": 22, "key": "injury_how", "label": "How it happened", "section": "Injury, joints and back", "group": "symptoms", "order": 24,
+    "text": "Did this start after an injury, fall or strain? If yes, how did it happen?", "placeholder": "e.g., slipped on stairs yesterday, or no injury",
+    "help": null,
+    "answer_type": "text", "choices": null,
+    "is_required": false, "branching_rules": {"show_if": {"question_key": "chief_complaint", "module": "injury"}}, "conditions": null,
+    "because": "You mentioned an injury, a joint, your back or swelling", "skip_why": "Asked only for injury, joint or back complaints"
   },
   {
-    "id": 16,
-    "key": "allergy_reaction",
-    "label": "Allergic reaction",
-    "section": "Allergies",
-    "group": "allergies",
-    "order": 16,
-    "text": "What happens when you are exposed to this allergen?",
-    "placeholder": null,
-    "help": "Select the reaction pattern.",
-    "answer_type": "choice",
-    "choices": [
-      "Skin rash / Hives",
-      "Facial or throat swelling",
-      "Breathing difficulty",
-      "Severe anaphylaxis",
-      "Stomach upset / vomiting",
-      "Not sure"
-    ],
-    "is_required": false,
-    "branching_rules": {
-      "show_if": {
-        "question_key": "has_allergies",
-        "equals": "Yes"
-      }
-    },
-    "conditions": [
-      {
-        "question_key": "has_allergies",
-        "answer_contains": "yes"
-      }
-    ],
-    "because": "Identifies severity of allergic responses",
-    "skip_why": "You reported no known allergies"
+    "id": 23, "key": "mobility_affected", "label": "Movement", "section": "Injury, joints and back", "group": "symptoms", "order": 25,
+    "text": "Can you move or use the affected part normally?", "placeholder": null, "help": null,
+    "answer_type": "choice", "choices": ["Yes, normally", "With some difficulty", "Not at all"],
+    "is_required": false, "branching_rules": {"show_if": {"question_key": "chief_complaint", "module": "injury"}}, "conditions": null,
+    "because": "You mentioned an injury, a joint, your back or swelling", "skip_why": "Asked only for injury, joint or back complaints"
   },
   {
-    "id": 17,
-    "key": "previous_surgery",
-    "label": "Previous surgery",
-    "section": "Background",
-    "group": "history",
-    "order": 17,
-    "text": "Have you had any surgery or hospital admission before?",
-    "placeholder": null,
-    "help": "Includes major operations or inpatient stays.",
-    "answer_type": "choice",
-    "choices": [
-      "Yes",
-      "No"
-    ],
-    "is_required": false,
-    "branching_rules": null,
-    "conditions": null,
-    "because": null,
-    "skip_why": null
+    "id": 24, "key": "mood_sleep", "label": "Mood and sleep", "section": "Mood and sleep", "group": "symptoms", "order": 26,
+    "text": "Over the last two weeks, have you had any of these?", "placeholder": null, "help": "Select all that apply. Your answers are private to your doctor.",
+    "answer_type": "multi",
+    "choices": ["Low mood most of the day", "Worry or anxiety", "Poor sleep", "Loss of interest in daily activities", "Thoughts of harming yourself", "None"],
+    "is_required": false, "branching_rules": {"show_if": {"question_key": "chief_complaint", "module": "mental"}}, "conditions": null,
+    "because": "You mentioned stress, mood or sleep", "skip_why": "Asked only for mood or sleep complaints"
   },
   {
-    "id": 18,
-    "key": "surgery_details",
-    "label": "Surgery details",
-    "section": "Background",
-    "group": "history",
-    "order": 18,
-    "text": "What surgery did you have and in which year?",
-    "placeholder": "e.g., Appendectomy in 2019, Knee arthroscopy in 2022",
-    "help": "Approximate procedure and year.",
-    "answer_type": "text",
-    "choices": null,
-    "is_required": false,
-    "branching_rules": {
-      "show_if": {
-        "question_key": "previous_surgery",
-        "equals": "Yes"
-      }
-    },
-    "conditions": [
-      {
-        "question_key": "previous_surgery",
-        "answer_contains": "yes"
-      }
-    ],
-    "because": "You reported previous surgical history",
-    "skip_why": "You reported no previous surgery"
+    "id": 25, "key": "pregnancy_status", "label": "Pregnancy", "section": "Women's health", "group": "symptoms", "order": 27,
+    "text": "Is there any chance you could be pregnant?", "placeholder": null, "help": null,
+    "answer_type": "choice", "choices": ["Yes", "No", "Not sure", "Not applicable"],
+    "is_required": false, "branching_rules": {"show_if": {"question_key": "chief_complaint", "module": "womens_health"}}, "conditions": null,
+    "because": "You mentioned periods or pregnancy", "skip_why": "Asked only for women's health complaints"
   },
   {
-    "id": 19,
-    "key": "family_history",
-    "label": "Family history",
-    "section": "Background",
-    "group": "history",
-    "order": 19,
-    "text": "Does anyone in your immediate family have heart disease, diabetes, or cancer?",
-    "placeholder": null,
-    "help": "Parents, siblings, or children.",
-    "answer_type": "choice",
-    "choices": [
-      "Yes",
-      "No",
-      "Not sure"
-    ],
-    "is_required": false,
-    "branching_rules": null,
-    "conditions": null,
-    "because": null,
-    "skip_why": null
+    "id": 26, "key": "last_period", "label": "Last period", "section": "Women's health", "group": "symptoms", "order": 28,
+    "text": "When did your last menstrual period start?", "placeholder": "e.g., 12 October", "help": "Leave blank if not applicable.",
+    "answer_type": "text", "choices": null,
+    "is_required": false, "branching_rules": {"show_if": {"question_key": "chief_complaint", "module": "womens_health"}}, "conditions": null,
+    "because": "You mentioned periods or pregnancy", "skip_why": "Asked only for women's health complaints"
+  },
+
+  {
+    "id": 27, "key": "has_fever", "label": "Fever", "section": "Other symptoms", "group": "symptoms", "order": 30,
+    "text": "Have you had a fever or felt feverish?", "placeholder": null, "help": null,
+    "answer_type": "choice", "choices": ["Yes", "No", "Not measured"],
+    "is_required": false, "branching_rules": {"skip_if": {"question_key": "chief_complaint", "module": "fever"}}, "conditions": null,
+    "because": null, "skip_why": "Already covered: you mentioned fever"
   },
   {
-    "id": 20,
-    "key": "additional_information",
-    "label": "Additional info",
-    "section": "Background",
-    "group": "core",
-    "order": 20,
-    "text": "Is there anything else you would like the doctor to know about your health or this visit?",
-    "placeholder": "e.g., Other concerns, questions, or recent changes in your health",
-    "help": "Free-form notes shared directly with the clinician.",
-    "answer_type": "text",
-    "choices": null,
-    "is_required": false,
-    "branching_rules": null,
-    "conditions": null,
-    "because": null,
-    "skip_why": null
+    "id": 28, "key": "associated_symptoms", "label": "Other symptoms", "section": "Other symptoms", "group": "symptoms", "order": 31,
+    "text": "Do you have any of these along with your main problem?", "placeholder": null, "help": "Select all that apply.",
+    "answer_type": "multi",
+    "choices": ["Tiredness", "Weight loss", "Loss of appetite", "Nausea", "Dizziness", "Shortness of breath", "Sweating", "None"],
+    "is_required": false, "branching_rules": null, "conditions": null, "because": null, "skip_why": null
+  },
+
+  {
+    "id": 29, "key": "has_chronic_conditions", "label": "Chronic conditions", "section": "Medical history", "group": "history", "order": 40,
+    "text": "Do you have any long-term or chronic medical conditions?", "placeholder": null, "help": null,
+    "answer_type": "choice", "choices": ["Yes", "No", "Not sure"],
+    "is_required": true, "branching_rules": null, "conditions": null, "because": null, "skip_why": null
+  },
+  {
+    "id": 30, "key": "chronic_conditions_detail", "label": "Which conditions", "section": "Medical history", "group": "history", "order": 41,
+    "text": "Which chronic conditions have you been diagnosed with?", "placeholder": null, "help": "Select all that apply.",
+    "answer_type": "multi",
+    "choices": ["Hypertension", "Diabetes (Type 1 or 2)", "Asthma / Respiratory", "Thyroid disorder", "Heart disease", "Kidney disease", "Other"],
+    "is_required": false, "branching_rules": {"show_if": {"question_key": "has_chronic_conditions", "equals": "Yes"}}, "conditions": null,
+    "because": "You reported a chronic condition", "skip_why": "Asked only if you have chronic conditions"
+  },
+  {
+    "id": 31, "key": "current_medications", "label": "Current medicines", "section": "Medicines", "group": "history", "order": 42,
+    "text": "Are you currently taking any prescription medicines, supplements, or regular tablets?", "placeholder": null,
+    "help": "Include blood pressure, diabetes, thyroid, or daily vitamins.",
+    "answer_type": "choice", "choices": ["Yes", "No"],
+    "is_required": true, "branching_rules": null, "conditions": null, "because": null, "skip_why": null
+  },
+  {
+    "id": 32, "key": "medication_details", "label": "Medicine names", "section": "Medicines", "group": "history", "order": 43,
+    "text": "Which medicines are you taking?", "placeholder": "e.g., Metformin, Amlodipine", "help": null,
+    "answer_type": "text", "choices": null,
+    "is_required": false, "branching_rules": {"show_if": {"question_key": "current_medications", "equals": "Yes"}}, "conditions": null,
+    "because": "You take regular medicines", "skip_why": "Asked only if you take medicines"
+  },
+  {
+    "id": 33, "key": "medication_dosage", "label": "Dose and frequency", "section": "Medicines", "group": "history", "order": 44,
+    "text": "What is the dose, and how often do you take it?", "placeholder": "e.g., 500 mg twice a day", "help": null,
+    "answer_type": "text", "choices": null,
+    "is_required": false, "branching_rules": {"show_if": {"question_key": "current_medications", "equals": "Yes"}}, "conditions": null,
+    "because": "You take regular medicines", "skip_why": "Asked only if you take medicines"
+  },
+  {
+    "id": 34, "key": "has_allergies", "label": "Allergies", "section": "Allergies", "group": "history", "order": 45,
+    "text": "Do you have any known allergies to medicines, food, or other substances?", "placeholder": null, "help": null,
+    "answer_type": "choice", "choices": ["Yes", "No", "Not sure"],
+    "is_required": true, "branching_rules": null, "conditions": null, "because": null, "skip_why": null
+  },
+  {
+    "id": 35, "key": "allergy_details", "label": "Allergic to", "section": "Allergies", "group": "history", "order": 46,
+    "text": "What substance or medicine are you allergic to?", "placeholder": "e.g., Penicillin", "help": null,
+    "answer_type": "text", "choices": null,
+    "is_required": false, "branching_rules": {"show_if": {"question_key": "has_allergies", "equals": "Yes"}}, "conditions": null,
+    "because": "You reported an allergy", "skip_why": "Asked only if you have allergies"
+  },
+  {
+    "id": 36, "key": "allergy_reaction", "label": "Allergic reaction", "section": "Allergies", "group": "history", "order": 47,
+    "text": "What happens when you are exposed to this allergen?", "placeholder": null, "help": null,
+    "answer_type": "choice", "choices": ["Skin rash / Hives", "Facial or throat swelling", "Breathing difficulty", "Severe anaphylaxis", "Stomach upset / vomiting", "Not sure"],
+    "is_required": false, "branching_rules": {"show_if": {"question_key": "has_allergies", "equals": "Yes"}}, "conditions": null,
+    "because": "You reported an allergy", "skip_why": "Asked only if you have allergies"
+  },
+  {
+    "id": 37, "key": "previous_surgery", "label": "Previous surgery", "section": "Medical history", "group": "history", "order": 48,
+    "text": "Have you had any surgery or hospital admission before?", "placeholder": null, "help": null,
+    "answer_type": "choice", "choices": ["Yes", "No"],
+    "is_required": false, "branching_rules": null, "conditions": null, "because": null, "skip_why": null
+  },
+  {
+    "id": 38, "key": "surgery_details", "label": "Surgery details", "section": "Medical history", "group": "history", "order": 49,
+    "text": "What surgery did you have and in which year?", "placeholder": null, "help": null,
+    "answer_type": "text", "choices": null,
+    "is_required": false, "branching_rules": {"show_if": {"question_key": "previous_surgery", "equals": "Yes"}}, "conditions": null,
+    "because": "You had surgery before", "skip_why": "Asked only if you had surgery"
+  },
+  {
+    "id": 39, "key": "family_history", "label": "Family history", "section": "Family", "group": "history", "order": 50,
+    "text": "Does anyone in your immediate family have heart disease, diabetes, or cancer?", "placeholder": null, "help": null,
+    "answer_type": "choice", "choices": ["Yes", "No", "Not sure"],
+    "is_required": false, "branching_rules": null, "conditions": null, "because": null, "skip_why": null
+  },
+  {
+    "id": 40, "key": "additional_information", "label": "Anything else", "section": "Anything else", "group": "history", "order": 51,
+    "text": "Is there anything else you would like the doctor to know about your health?", "placeholder": null, "help": null,
+    "answer_type": "text", "choices": null,
+    "is_required": false, "branching_rules": null, "conditions": null, "because": null, "skip_why": null
   }
 ]

@@ -488,6 +488,8 @@ class DashboardCaseOut(BaseModel):
     readiness_score: Optional[float] = None
     doctor_notes: Optional[str] = None
     reviewed_at: Optional[datetime] = None
+    urgency: Optional[str] = None                 # EMERGENCY | URGENT | None (rule-based red flags)
+    priority_alerts: List[str] = []
 
 
 class AuditEventOut(BaseModel):

@@ -89,6 +89,15 @@ async def self_register_patient(
     await db.refresh(patient)
     await db.refresh(encounter)
 
+    # The reason for visit typed at sign-up is the interview's first answer, so the
+    # complaint-specific questions start immediately
+    if payload.chief_complaint and payload.chief_complaint.strip():
+        from app.services.adaptive_engine import AdaptiveEngine
+        await AdaptiveEngine(db).save_response(encounter.id, "chief_complaint", payload.chief_complaint.strip())
+        await db.refresh(encounter)
+        from app.services.auto_analysis import request_analysis
+        request_analysis(encounter.id, "reason_for_visit")
+
     # 4. Generate JWT access token with role 'patient'
     # "sub" must be the numeric user id, matching /api/auth/login and get_current_user()
     token = create_access_token({"sub": str(user.id), "role": user.role.value})

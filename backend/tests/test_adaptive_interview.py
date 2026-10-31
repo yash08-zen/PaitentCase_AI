@@ -5,11 +5,11 @@ Comprehensive unit and integration test suite for Milestone M4:
 Guided Interview and Adaptive Rule Engine (FR-02, FR-03).
 
 Covers:
-  1. Chief complaint as initial question
-  2. Branching: Pain -> location & associated symptoms
-  3. Branching: Chest discomfort -> worse with activity
-  4. Branching: Headache -> symptom frequency
-  5. Branching: Fever -> skips redundant fever question (skip_if)
+  1. Free-text reason for visit as initial question
+  2. Complaint modules: pain -> pain questions (unrelated modules skipped)
+  3. Complaint modules: chest -> exertion & chest symptoms
+  4. Complaint modules chosen from Hindi / Marathi text
+  5. Fever complaint -> skips redundant fever question (skip_if)
   6. Branching: No medications -> skips details and dosage
   7. Branching: Yes medications -> triggers details and dosage
   8. Branching: No allergies -> skips details and reaction
@@ -44,152 +44,102 @@ async def interview_encounter(client, auth_headers):
     return e_res.json()["id"]
 
 
+async def _answer(client, headers, enc, key, ans):
+    r = await client.post(f"/api/interviews/{enc}/responses", json={"question_key": key, "answer": ans}, headers=headers)
+    assert r.status_code == 201, r.text
+    return r
+
+
+async def _active_keys(client, headers, enc):
+    prog = await client.get(f"/api/interviews/{enc}/progress", headers=headers)
+    return [i["key"] for i in prog.json()["active_path"]], [s["key"] for s in prog.json()["skipped_questions"]]
+
+
 @pytest.mark.asyncio
-async def test_first_question_is_chief_complaint(client, auth_headers, interview_encounter):
-    """1. First question presented must always be chief_complaint with order=1."""
-    res = await client.get(
-        f"/api/interviews/{interview_encounter}/next-question",
-        headers=auth_headers,
-    )
+async def test_first_question_is_free_text_reason_for_visit(client, auth_headers, interview_encounter):
+    """1. The first question asks for the reason for visit in the patient's own words."""
+    res = await client.get(f"/api/interviews/{interview_encounter}/next-question", headers=auth_headers)
     assert res.status_code == 200
     data = res.json()
     assert data["is_complete"] is False
-    assert data["question"] is not None
     assert data["question"]["key"] == "chief_complaint"
-    assert data["question"]["answer_type"] == "choice"
-    assert "Abdominal pain" in data["question"]["choices"]
+    assert data["question"]["answer_type"] == "text"
+    assert not data["question"]["choices"]
     assert data["can_go_back"] is False
 
 
 @pytest.mark.asyncio
-async def test_pain_branching_triggers_location_and_associated_symptoms(
-    client, auth_headers, interview_encounter
-):
-    """2. Answering 'Abdominal pain' triggers pain_location and associated_symptoms follow-ups."""
-    # Answer chief complaint = Abdominal pain
-    r1 = await client.post(
-        f"/api/interviews/{interview_encounter}/responses",
-        json={"question_key": "chief_complaint", "answer": "Abdominal pain"},
-        headers=auth_headers,
-    )
-    assert r1.status_code == 201
+async def test_pain_complaint_adds_pain_questions(client, auth_headers, interview_encounter):
+    """2. A free-text pain complaint adds the pain module; unrelated modules stay out."""
+    await _answer(client, auth_headers, interview_encounter, "chief_complaint", "Sharp pain in my lower belly since yesterday")
+    active, skipped = await _active_keys(client, auth_headers, interview_encounter)
+    assert {"pain_location", "pain_character", "pain_radiation", "gi_symptoms"} <= set(active)
+    assert "cough_type" in skipped and "urinary_symptoms" in skipped
+    # generic questions apply to every complaint
+    assert {"symptom_onset", "symptom_duration", "symptom_course", "symptom_triggers"} <= set(active)
 
-    # Answer duration = 1 to 3 days
-    await client.post(
-        f"/api/interviews/{interview_encounter}/responses",
-        json={"question_key": "symptom_duration", "answer": "1 to 3 days"},
-        headers=auth_headers,
-    )
-    # Answer severity = 6
-    await client.post(
-        f"/api/interviews/{interview_encounter}/responses",
-        json={"question_key": "symptom_severity", "answer": "6"},
-        headers=auth_headers,
-    )
-
-    # Next question should be pain_location (show_if satisfied)
-    next_q = await client.get(
-        f"/api/interviews/{interview_encounter}/next-question",
-        headers=auth_headers,
-    )
-    assert next_q.status_code == 200
-    q_data = next_q.json()["question"]
-    assert q_data["key"] == "pain_location"
-    assert next_q.json()["adaptive_note"] is not None
-    assert "Upper abdomen" in q_data["choices"]
+    for key, ans in (("symptom_onset", "Suddenly"), ("symptom_duration", "1 to 3 days"), ("symptom_severity", "6"),
+                     ("symptom_course", "Getting worse"), ("symptom_triggers", "worse after food"),
+                     ("previous_episodes", "No")):
+        await _answer(client, auth_headers, interview_encounter, key, ans)
+    nxt = (await client.get(f"/api/interviews/{interview_encounter}/next-question", headers=auth_headers)).json()
+    assert nxt["question"]["key"] == "pain_location"
+    assert nxt["adaptive_note"] and "pain" in nxt["adaptive_note"].lower()
+    assert "Lower abdomen" in nxt["question"]["choices"]
 
 
 @pytest.mark.asyncio
-async def test_chest_discomfort_triggers_worse_with_activity(
-    client, auth_headers, interview_encounter
-):
-    """3. Answering 'Chest discomfort' triggers worse_with_activity question."""
-    await client.post(
-        f"/api/interviews/{interview_encounter}/responses",
-        json={"question_key": "chief_complaint", "answer": "Chest discomfort"},
-        headers=auth_headers,
-    )
-    await client.post(
-        f"/api/interviews/{interview_encounter}/responses",
-        json={"question_key": "symptom_duration", "answer": "Less than a day"},
-        headers=auth_headers,
-    )
-    await client.post(
-        f"/api/interviews/{interview_encounter}/responses",
-        json={"question_key": "symptom_severity", "answer": "8"},
-        headers=auth_headers,
-    )
-    await client.post(
-        f"/api/interviews/{interview_encounter}/responses",
-        json={"question_key": "pain_location", "answer": "Left chest"},
-        headers=auth_headers,
-    )
-
-    # worse_with_activity should be next
-    res = await client.get(
-        f"/api/interviews/{interview_encounter}/next-question",
-        headers=auth_headers,
-    )
-    assert res.status_code == 200
-    assert res.json()["question"]["key"] == "worse_with_activity"
+async def test_chest_complaint_adds_exertion_and_chest_symptoms(client, auth_headers, interview_encounter):
+    """3. Chest complaints add exertion and chest-symptom questions."""
+    await _answer(client, auth_headers, interview_encounter, "chief_complaint", "Tightness in chest when I climb stairs")
+    active, _ = await _active_keys(client, auth_headers, interview_encounter)
+    assert "worse_with_activity" in active and "chest_symptoms" in active
 
 
 @pytest.mark.asyncio
-async def test_headache_triggers_frequency(
-    client, auth_headers, interview_encounter
-):
-    """4. Answering 'Headache' triggers symptom_frequency question."""
-    await client.post(
-        f"/api/interviews/{interview_encounter}/responses",
-        json={"question_key": "chief_complaint", "answer": "Headache"},
-        headers=auth_headers,
-    )
-    await client.post(
-        f"/api/interviews/{interview_encounter}/responses",
-        json={"question_key": "symptom_duration", "answer": "4 to 7 days"},
-        headers=auth_headers,
-    )
-    await client.post(
-        f"/api/interviews/{interview_encounter}/responses",
-        json={"question_key": "symptom_severity", "answer": "5"},
-        headers=auth_headers,
-    )
-    await client.post(
-        f"/api/interviews/{interview_encounter}/responses",
-        json={"question_key": "pain_location", "answer": "Forehead / temples"},
-        headers=auth_headers,
-    )
+async def test_hindi_and_marathi_complaints_select_modules(client, auth_headers, interview_encounter):
+    """4. Complaints typed in Hindi or Marathi choose the same modules."""
+    await _answer(client, auth_headers, interview_encounter, "chief_complaint", "तीन दिन से बुखार और खांसी है")
+    active, _ = await _active_keys(client, auth_headers, interview_encounter)
+    assert {"fever_pattern", "cough_type", "breathlessness_level"} <= set(active)
 
-    # symptom_frequency should be next (not worse_with_activity)
-    res = await client.get(
-        f"/api/interviews/{interview_encounter}/next-question",
-        headers=auth_headers,
-    )
-    assert res.status_code == 200
-    assert res.json()["question"]["key"] == "symptom_frequency"
+    await _answer(client, auth_headers, interview_encounter, "chief_complaint", "लघवी करताना जळजळ होते")
+    active, _ = await _active_keys(client, auth_headers, interview_encounter)
+    assert "urinary_symptoms" in active and "fever_pattern" not in active
 
 
 @pytest.mark.asyncio
-async def test_fever_complaint_skips_has_fever_question(
-    client, auth_headers, interview_encounter
-):
-    """5. When chief complaint is 'Fever', has_fever question is skipped (skip_if)."""
-    await client.post(
-        f"/api/interviews/{interview_encounter}/responses",
-        json={"question_key": "chief_complaint", "answer": "Fever"},
-        headers=auth_headers,
-    )
+async def test_fever_complaint_skips_has_fever_question(client, auth_headers, interview_encounter):
+    """5. When the complaint mentions fever, the generic fever question is skipped (skip_if)."""
+    await _answer(client, auth_headers, interview_encounter, "chief_complaint", "High fever with chills")
+    _, skipped = await _active_keys(client, auth_headers, interview_encounter)
+    assert "has_fever" in skipped
 
-    progress = await client.get(
-        f"/api/interviews/{interview_encounter}/progress",
-        headers=auth_headers,
-    )
-    assert progress.status_code == 200
-    data = progress.json()
 
-    # has_fever should be in skipped_questions
-    skipped_keys = [s["key"] for s in data["skipped_questions"]]
-    assert "has_fever" in skipped_keys
+@pytest.mark.asyncio
+async def test_changing_complaint_prunes_answers_of_dropped_modules(client, auth_headers, interview_encounter):
+    """Changing the reason for visit removes answers to questions that no longer apply."""
+    await _answer(client, auth_headers, interview_encounter, "chief_complaint", "cough for a week")
+    await _answer(client, auth_headers, interview_encounter, "cough_type", "Dry cough")
+    await _answer(client, auth_headers, interview_encounter, "chief_complaint", "itchy rash on arms")
+    keys = [a["question_key"] for a in (await client.get(f"/api/interviews/{interview_encounter}/answers",
+                                                          headers=auth_headers)).json()]
+    assert "cough_type" not in keys
+
+
+@pytest.mark.asyncio
+async def test_localized_choice_answers_drive_branching(client, auth_headers, interview_encounter):
+    """Choices answered in Hindi ('हां (Yes)') branch exactly like English ones."""
+    await _answer(client, auth_headers, interview_encounter, "current_medications", "हां (Yes)")
+    active, _ = await _active_keys(client, auth_headers, interview_encounter)
+    assert "medication_details" in active
+
+
+@pytest.mark.asyncio
+async def test_reason_for_visit_is_stored_on_encounter(client, auth_headers, interview_encounter):
+    await _answer(client, auth_headers, interview_encounter, "chief_complaint", "Back pain after lifting a box")
+    enc = (await client.get(f"/api/encounters/{interview_encounter}", headers=auth_headers)).json()
+    assert enc["chief_complaint"] == "Back pain after lifting a box"
 
 
 @pytest.mark.asyncio
@@ -350,7 +300,7 @@ async def test_interrupted_session_resumes_at_correct_unanswered_question(
     )
     assert resume_res.status_code == 200
     data = resume_res.json()
-    assert data["question"]["key"] == "symptom_severity"
+    assert data["question"]["key"] == "symptom_onset"  # first unanswered applicable question
     assert data["answered_count"] == 2
 
 

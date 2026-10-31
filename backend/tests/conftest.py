@@ -11,6 +11,8 @@ from httpx import AsyncClient, ASGITransport
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["APP_SECRET_KEY"] = "test-secret-key-for-unit-tests"
 os.environ["UPLOAD_DIR"] = "./test_uploads"
+os.environ["LLM_PROVIDER"] = "mock"
+os.environ["AUTO_ANALYSIS_ENABLED"] = "false"  # tests that need it switch it on explicitly
 
 from app.main import app, seed_questions, ensure_default_admin
 from app.database import engine
@@ -44,3 +46,12 @@ async def auth_headers(client):
     assert resp.status_code == 200, resp.text
     token = resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture(autouse=True)
+def reset_mock_llm():
+    """Each test starts with a clean mock LLM (no overrides, available)."""
+    from app.services.llm.manager import llm_service
+    llm_service.mock.reset()
+    yield
+    llm_service.mock.reset()

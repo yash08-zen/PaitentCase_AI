@@ -19,6 +19,22 @@ class Settings(BaseSettings):
     # ── Database ─────────────────────────────────────────────────────────
     DATABASE_URL: str = "sqlite+aiosqlite:///./patientcase.db"
 
+    # ── LLM & AI Clinical Insights ───────────────────────────────────────
+    LLM_PROVIDER: str = "hosted"  # "hosted" | "local" | "mock"
+    ANTHROPIC_API_KEY: str = ""
+    ANTHROPIC_EXTRACTION_MODEL: str = "claude-haiku-5-5"
+    ANTHROPIC_REASONING_MODEL: str = "claude-sonnet-5-5"
+    OLLAMA_BASE_URL: str = "http://127.0.0.1:11434/v1"
+    OLLAMA_MODEL: str = "llama3.2:3b"
+    AI_FOLLOWUPS_ENABLED: bool = False
+    # Run the analysis automatically when the patient answers or a document is processed
+    AUTO_ANALYSIS_ENABLED: bool = True
+    # Quiet period after the last interview answer before an automatic run (seconds)
+    AUTO_ANALYSIS_DEBOUNCE_SECONDS: float = 8.0
+    LLM_TIMEOUT_SECONDS: int = 30
+    LLM_MAX_RETRIES: int = 3
+    LLM_MAX_TOKENS: int = 4096
+
     # ── CORS ─────────────────────────────────────────────────────────────
     CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
 

@@ -1,13 +1,14 @@
 # PatientCase AI — System Limitations & Clinical Boundary Statement
 
-## 1. Non-Diagnostic Clinical Boundary Statement
+## 1. Clinical Boundary Statement
 **IMPORTANT CLINICAL NOTICE:**
-PatientCase AI is strictly an **information intake, document structuring, and clinical handoff assistant**.
-- The system **does NOT diagnose diseases, disorders, or medical conditions**.
-- The system **does NOT recommend treatments, drugs, or clinical interventions**.
-- The system **does NOT calculate clinical triage urgency, emergency severity scores, or disease mortality risks**.
-- The completeness score is a measure of **data intake completeness only** (i.e. whether required intake fields have been provided) and is **never a measure of diagnostic accuracy or patient health status**.
-- All machine-generated document extractions are tagged with the provenance label `document_extracted_unverified` and must be reviewed, reconciled, and approved by a licensed medical practitioner before any clinical reliance.
+PatientCase AI provides source-cited, AI-generated suggestions for clinician review. It makes no autonomous decisions. All AI output is unverified until a licensed clinician accepts it.
+- AI suggestions (possible considerations, treatment reference, case summary, trend sentences, questions to ask) are visible to doctors only, carry the provenance `ai_generated_unverified`, and become `doctor_verified` only after the doctor clicks Accept or Edit.
+- Possible considerations are not diagnoses. The validator rejects definitive wording ("definitely", "the diagnosis is", …).
+- Risk and urgency scores (qSOFA, CURB-65, NEWS2, CHA₂DS₂-VASc) and red-flag alerts are computed by code. They are decision support for a clinician, not triage decisions, and their thresholds have not been clinically validated for this deployment.
+- The completeness score measures **intake data completeness only** and is never a measure of diagnostic accuracy or patient health status.
+- All machine extractions carry provenance (`document_extracted_unverified`, `regex_extracted_unverified`, `vision_fallback`) and must be reviewed by a licensed practitioner before clinical reliance.
+- **Regulatory status:** software that suggests diagnoses or treatment may be regulated as a medical device (Software as a Medical Device) in India under the Medical Devices Rules, 2017 administered by CDSCO. PatientCase AI has not been assessed or registered. It is a **research prototype for synthetic data only** and must not be used for real patients.
 
 ---
 
@@ -17,8 +18,9 @@ PatientCase AI is strictly an **information intake, document structuring, and cl
   - Diagnostic lab reports (standard key-value formatting).
   - Formats: JPEG, PNG, WebP, TIFF, and PDF (scanned/vector) up to 20 MB.
 - **Recognized Limitations & Empirical Benchmarks (M13):**
-  - **Severe Cursive Handwriting & Degradation:** Measured on the empirical benchmark dataset (`tests/eval_data/handwritten/`), printed hospital prescriptions achieve **100.0% medication recall**, whereas unconstrained doctor cursive achieves only **33.3%** on slanted cursive and **0.0%** on degraded cursive scrawl.
-  - **Mandatory Clinician Transcription Safeguard:** Automated finalization is strictly disabled for unconstrained doctor handwriting; documents with mean confidence < 0.70 or unparseable cursive scrawl automatically default to status `needs_review` requiring clinician verification.
+  - **Severe Cursive Handwriting & Degradation:** On the benchmark images (`backend/tests/eval_data/handwritten/`), the AI eval harness measured RapidOCR + regex medication recall of 100% on the clean printed prescription, 50% on the bilingual printed one, and **0%** on all three handwritten images (see `docs/AI_EVAL_REPORT.md`). An older benchmark script reported 33.3% on slanted cursive using a different matcher.
+  - **Confidence gate gap (measured):** two of the three handwritten images scored OCR confidence ≥ 0.70 (0.90 and 0.95) while losing every medication. The 0.70 gate therefore does **not** reliably detect handwriting: such pages are neither sent to the vision path nor flagged `needs_review` by the gate. Extracted medications still pass grounding and appear as unverified, but clinicians must check handwritten scans themselves.
+  - **Mandatory Clinician Transcription Safeguard:** documents with mean confidence < 0.70 or no readable text default to `needs_review`. In hosted mode they are additionally read by the vision model and flagged *read from handwriting, verify*.
   - **Damaged / Folded Physical Paper:** Severe creases, coffee stains, or low-light shadows can reduce text recognition accuracy.
   - **Non-Latin Scripts in Prescriptions:** Current OCR models are optimized for Latin script medical terms and brand names commonly used in Indian prescription practice. Vernacular handwritten drug names may have lower confidence.
 
@@ -35,7 +37,8 @@ PatientCase AI is strictly an **information intake, document structuring, and cl
 ---
 
 ## 4. Offline Capabilities & Networking Scope (FR-13 / Milestone M11)
-- **Fully Offline Capable & Tested:**
+- **LLM provider modes:** the statements below hold for `LLM_PROVIDER=local` and `LLM_PROVIDER=mock`. With `LLM_PROVIDER=hosted`, the AI layer sends **de-identified clinical text** to the configured provider (Anthropic API), and for low-confidence images it sends the **page image itself**, which cannot be de-identified. See §6.
+- **Fully Offline Capable & Tested (local / mock modes):**
   - **Local FastAPI Backend Server:** Runs on loopback (`localhost:8000`) with zero outbound WAN socket connections.
   - **Local Vite / React Single-Page Application:** All JS, CSS, and SVG iconography assets are self-contained and bundled locally; zero external CDNs, fonts, or tracking scripts.
   - **Local SQLite Database (`aiosqlite`):** Zero external database server dependencies. Data remains 100% persisted across workstation shutdowns and app restarts.
@@ -61,3 +64,18 @@ PatientCase AI is strictly an **information intake, document structuring, and cl
   - **Code-Mixed Dialects (Hinglish & Marathish):** Evaluated across 25 representative utterances. Standard dialects achieve 80–100% intent resolution. Code-mixed utterances achieve 80–100% resolution with mandatory confirmation enforced (100% for Hinglish, 80% for Marathish). Unverified commitments are strictly prevented.
   - **Extreme Ambient Noise:** Heavy background noise (e.g., loud hospital waiting halls) can degrade microphone signal-to-noise ratio; the system flags low confidence and prompts for keyboard/touch entry.
   - **Unregistered Vernacular Dialects:** Multilingual mapping is calibrated and tested against Standard Indian English, Modern Standard Hindi, and Standard Marathi, with heuristic code-mixed detection. Non-standard regional colloquialisms require manual keyboard entry or confirmation.
+
+---
+
+## 6. AI Clinical Insights Layer Limitations
+
+- **Hosted-mode privacy.** De-identification is regex-based (names given to it, phone, Aadhaar, ABHA, email, MRN/UHID, PIN, address lines). It can miss identifiers written in unusual formats or embedded in free text (for example a relative's name). Page images sent for handwriting reading are not de-identified at all. Hosted mode is therefore for **synthetic data only**; the server prints a startup warning and the UI shows a consent line. Every external call writes an `LLM_EXTERNAL_CALL` audit event (no clinical text is logged).
+- **Small local models.** `local` mode targets a ~3B instruct model on 8 GB RAM / 4 GB VRAM with `num_ctx ≤ 4096`, one job at a time. Expect weaker extraction, more items dropped by the validator, and possible JSON failures (these surface as validation notes, not crashes). Long documents may exceed the context window. Hindi/Marathi summaries are disabled in local mode (English only).
+- **Vision path unavailable offline.** Handwriting reading needs the hosted provider. In local mode low-confidence pages go straight to `needs_review`. Vision recall has **not been measured** yet (no API key was available during evaluation).
+- **Offline evaluation is not a model evaluation.** The automated tests and the default eval run use the `mock` provider, a deterministic regex/dictionary stand-in. Its scores say nothing about how a hosted or local LLM performs. The eval dataset and the mock were written by the same team, so offline scores are an upper bound for the stand-in.
+- **Sample guideline content.** All passages in `backend/config/guidelines_sample.json` are labelled `SAMPLE – replace with verified source`. They are placeholders, are not taken from any real guideline, and must be replaced with verified sources (`scripts/ingest_guidelines.py`) before any real use. The treatment panel shows only what retrieval returns; if nothing relevant is retrieved it says so.
+- **Thresholds need clinician review.** Trend rules (`backend/config/trend_rules.yaml`), critical-value thresholds (`app/engines/lab_flagging.py`), red-flag rules, the interaction table and the brand→generic map are small, hand-written samples. They are marked as requiring clinician review and are not exhaustive (e.g. no renal dose adjustment, no pregnancy or paediatric checks).
+- **Scores only from documented inputs.** The intake question bank does not collect vitals or mental status, so most risk scores will be `not_calculable` unless the documents print the inputs. This is intended (missing is never treated as normal).
+- **Extraction coverage.** The offline path only recognises lab tests in the local synonym table and drugs in the regex dictionary; others are missed (see the eval report). Unit normalization covers a few common conversions; unknown units are left as printed and flagged.
+- **Validator limits.** Number traceability checks that each number appears somewhere in the case evidence, not that it is used in the right context. Injection-marker and definitive-phrase lists are pattern-based and can be evaded by paraphrase; the doctor-gating step remains the final safeguard.
+- **AI follow-up questions** are off by default (`AI_FOLLOWUPS_ENABLED=false`). When on, a question that passes the safety filter is shown to the patient without a clinician seeing it first.

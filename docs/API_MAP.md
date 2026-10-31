@@ -52,7 +52,9 @@
 
 ---
 
-### Screen 5 — Adaptive Rule-Based Interview (`Interview.jsx`)
+### Screen 5 — Adaptive Interview (`Interview.jsx`, reason card in `PatientPortal.jsx`)
+
+The first question (`chief_complaint`) is free text; the following questions depend on symptom modules matched from it (see RUNBOOK §11.3a).
 
 | Action | Frontend Handler | Backend Endpoint | Method | Status | Notes |
 |---|---|---|---|---|---|
@@ -85,7 +87,40 @@
 | Detect discrepancies | `apiClient.getContradictions(id)` | `/api/encounters/{id}/contradictions` | `GET` | **Verified (M7)** | Deterministic 6-rule contradiction engine (e.g., `RULE-MED-DENIAL`). |
 | Reconcile discrepancy | `apiClient.resolveConflict(cid, notes)` | `/api/conflicts/{id}/resolve` | `PUT` | **Verified (M8)** | Doctor resolution note, updates flag, emits audit trail. |
 | Persist doctor notes | `apiClient.saveDoctorNotes(id, notes)` | `/api/encounters/{id}/notes` | `PUT` | **Verified (M8)** | Persists clinical review observations to encounter record. |
-| Finalize & lock encounter | `apiClient.finalizeEncounter(id, notes)`| `/api/encounters/{id}/finalize` | `POST` | **Verified (M8)** | Permanently locks encounter against patient tampering (`HTTP 400`). |
+| Finalize & lock encounter | `apiClient.finalizeEncounter(id, notes)`| `/api/encounters/{id}/finalize` | `POST` | **Verified (M8)** | Permanently locks encounter against patient tampering (`HTTP 400`). Also locks AI re-runs and AI decisions. |
+
+### Automatic analysis and the doctor dashboard
+
+| Trigger | Where | Behaviour |
+|---|---|---|
+| Interview answer saved | `POST /api/interviews/{id}/responses` | Debounced automatic analysis (`AUTO_ANALYSIS_DEBOUNCE_SECONDS`) |
+| Interview completed | `POST /api/interviews/{id}/complete` | Immediate automatic analysis |
+| Document OCR finished | background worker after `POST /api/documents/upload/{patient_id}` | Immediate automatic analysis |
+| Self-registration with a reason | `POST /api/patients/self-register` | Reason saved as the first answer; debounced analysis |
+
+| Endpoint | Method | Roles | Description |
+|---|---|---|---|
+| `/api/analysis/overview?limit=30` | `GET` | doctor, admin (403 otherwise) | Per open case: `analysis_state` (`analyzing`/`ready`/`ai_unavailable`/`failed`/`not_analyzed`), `last_trigger`, `urgency`, `reason_for_visit`, latest `conclusion` (Analyzed Conclusion insight), rule-based `overview`. Sorted by urgency. Used by `components/AIConclusionsPanel.jsx` on `Dashboard.jsx`. |
+
+`GET /api/analysis/{id}` also returns `analyzed_conclusion`, `overview`, `analysis_state` and `last_trigger`.
+
+### Screen 8 — AI Insights tab (`DoctorReview.jsx` → `components/AIClinicalInsights.jsx`, doctor/admin only)
+
+| Action | Frontend Handler | Backend Endpoint | Method | Notes |
+|---|---|---|---|---|
+| Run AI analysis | `apiClient.runAIAnalysis(id, { summaryLanguage })` | `/api/analysis/{encounter_id}/run?summary_language=en\|hi\|mr` | `POST` | Returns **202** `{status: "queued", job_id}`; runs as a background job. 400 if the case is locked, 409 if a job is already running. hi/mr summaries only in hosted mode. |
+| Load insights + job status | `apiClient.getAIAnalysis(id)` (polled every 1.5 s while the job is `pending`/`running`) | `/api/analysis/{encounter_id}` | `GET` | Insights, documented vs possible diagnoses, entities with source spans, labs, trends, trend sentences, risk scores (`calculated` / `not_calculable` + missing inputs + formula version), rule conflicts, medication reconciliation, treatment references, summary, questions, document timeline, quality checks, red flags, job (`status`, `progress`, `usage`, `notes`), `llm_status`. |
+| Accept / Edit / Reject an AI item | `apiClient.decideAIInsight(id, { decision, doctor_edits })` | `/api/insights/{id}/decision` | `PUT` | `accepted`/`edited` → provenance `doctor_verified`; `edited` requires `doctor_edits`; writes `AI_INSIGHT_DECISION` audit event; 400 when locked. |
+| View scan beside fields | `apiClient.getDocumentFileBlob(docId)` | `/api/documents/{id}/file` | `GET` | Authenticated blob; extracted text shown with cited spans highlighted. |
+| Guideline library (read-only) | `apiClient.getAIGuidelines()` | `/api/analysis/guidelines` | `GET` | Doctor/admin. Each sample passage carries `SAMPLE – replace with verified source`. |
+| Trend rules (read-only) | `apiClient.getAITrendRules()` | `/api/analysis/trend-rules` | `GET` | Doctor/admin. Contents of `backend/config/trend_rules.yaml`. |
+| Provider indicator | `apiClient.getLLMStatus()` / `llm_status` in payload | `/api/system/llm-status` | `GET` | Mode (hosted/local/mock), availability (`available` / `llm_unavailable`), capability (`full`/`reduced`), consent line. Never returns the key. |
+
+**Role boundary:** patients and staff receive **403** on every endpoint in this table except `/api/system/llm-status` and the document file endpoint (which has its own RBAC). Covered by `backend/tests/test_ai_analysis_api.py::test_role_boundaries_patient_and_staff_forbidden_on_insights`.
+
+**Dashboard (`Dashboard.jsx`):** `/api/dashboard/cases` now returns `urgency` (`EMERGENCY`/`URGENT`/null) and `priority_alerts` from the rule-based red-flag engine; urgent cases sort first. Visible to doctors and staff (rule-based, not AI output).
+
+**Interview (`Interview.jsx`):** with `AI_FOLLOWUPS_ENABLED=true`, `GET /api/interviews/{id}/next-question` may return one optional `ai_followup_<encounter>_<dimension>` question that passed the safety filter; otherwise the deterministic flow is unchanged.
 
 ---
 
@@ -111,4 +146,4 @@
 
 ---
 
-*Verified: Milestone M14 Handover — 2026-10-25*
+*Verified: Milestone M14 Handover — 2026-10-25. AI endpoints added 2026-10-31.*

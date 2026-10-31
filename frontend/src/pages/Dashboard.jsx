@@ -4,10 +4,13 @@ import { completeness, openFlags, statusOf } from "../utils/engine";
 import { Icon, Ring, StatusTag, Proto, Tag } from "../components/ui";
 import apiClient from "../api/client";
 import { fmtT } from "../utils/i18n";
+import AIConclusionsPanel from "../components/AIConclusionsPanel";
 
 const WEEK = [2, 7, 5, 9, 6, 3, 1];
 
-export default function Dashboard({ go }) {
+export default function Dashboard({ go, user }) {
+  const role = (user?.role || "doctor").toLowerCase();
+  const showAIConclusions = role === "doctor" || role === "admin";
   const { patients, cases, setActiveId, t } = useStore();
   const days = t("weekDays").split(",");
   const [liveSummary, setLiveSummary] = useState(null);
@@ -98,6 +101,8 @@ export default function Dashboard({ go }) {
         ))}
       </div>
 
+      {showAIConclusions && <AIConclusionsPanel go={go} />}
+
       <div className="cols">
         <div className="card">
           <h2>{t("weeklyIntake")}</h2>
@@ -144,6 +149,13 @@ export default function Dashboard({ go }) {
                   </p>
                 </div>
                 <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  {enc.urgency && (
+                    <span title={(enc.priority_alerts || []).join("\n")}>
+                      <Tag kind="bad">
+                        {enc.urgency === "EMERGENCY" ? t("urgencyEmergency") : t("urgencyUrgent")}
+                      </Tag>
+                    </span>
+                  )}
                   <Tag kind={enc.status === "reviewed" ? "ver" : "warn"}>
                     {enc.status === "reviewed" ? t("reviewed") : t("stNeedsReview")}
                   </Tag>

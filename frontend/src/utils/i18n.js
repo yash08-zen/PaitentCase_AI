@@ -8,6 +8,9 @@
 
 import { PAGE_TRANSLATIONS } from "./i18n_pages";
 import { INTAKE_TRANSLATIONS } from "./i18n_intake";
+import { AI_TRANSLATIONS } from "./i18n_ai";
+import { LOCAL_QUESTION_TRANSLATIONS } from "./i18n_questions";
+import { VISIT_TRANSLATIONS } from "./i18n_visit";
 
 export const LANGUAGES = [
   { code: "en", name: "English", native: "English", locale: "en-IN" },
@@ -45,18 +48,52 @@ export const UI_TRANSLATIONS = {
     patient: "Patient",
     admin: "Admin",
 
+    // AI Clinical Insights
+    aiClinicalInsights: "AI Clinical Insights",
+    aiInsights: "AI Insights",
+    aiGeneratedUnverified: "AI-generated, unverified",
+    doctorVerified: "Doctor Verified",
+    aiNoticeText: "PatientCase AI provides source-cited, AI-generated suggestions for clinician review. It makes no autonomous decisions.",
+    urgencyEmergency: "EMERGENCY",
+    urgencyUrgent: "URGENT",
+    urgencyRoutine: "ROUTINE",
+    runAIAnalysis: "Run AI Analysis",
+    runningAnalysis: "Running AI Pipeline...",
+    documentedDiagnoses: "Documented Diagnoses",
+    possibleDiagnoses: "Possible Considerations (Differential)",
+    abnormalLabs: "Abnormal & Critical Lab Results",
+    allLabs: "All Extracted Lab Tests",
+    computedTrends: "Computed Laboratory Trends",
+    riskScores: "Deterministic Risk Scores",
+    treatmentReference: "Evidence-Based Treatment Reference",
+    aiCaseSummary: "AI Draft Summary",
+    questionsToAsk: "Clarification Questions for Patient",
+    accept: "Accept",
+    edit: "Edit",
+    reject: "Reject",
+    caseLockedNotice: "Encounter has been finalized and locked by clinician review. All insights are read-only.",
+    notCalculable: "Not calculable",
+    calculateProvisional: "Calculate anyway (Provisional)",
+    sourceEvidence: "Evidence / Source Spans",
+    guidelineQuote: "Guideline Recommendation",
+    saveEdit: "Save Doctor Edit",
+    cancel: "Cancel",
+    rejectionReason: "Reason for rejection",
+    originalScan: "Original Medical Document",
+    extractedEntities: "Extracted Grounded Entities",
+
     // Boundary Notice
     boundaryBadge: "NON-DIAGNOSTIC NOTICE",
     boundaryText: "This software assists with clinical case-taking and information organization. It does NOT diagnose diseases, prescribe medicines, or replace clinical judgment.",
 
     // Login & Auth
     loginTitle: "Welcome to PatientCase AI",
-    loginSubtitle: "Adaptive pre-consultation case-taking, with a structured, review-ready case waiting for the doctor.",
+    loginSubtitle: "Adaptive pre-consultation case-taking and physician review.",
     signInTab: "Sign In",
     signUpTab: "New Patient Sign Up",
-    quickDemoRoles: "Quick Demo Role Credentials:",
-    existingPatientNotice: "Sign in to an existing hospital patient account.",
-    patientRoleDesc: "Logs into an existing patient account with linked records.",
+    quickDemoRoles: "Select Demo Role:",
+    existingPatientNotice: "Sign in to an existing patient account.",
+    patientRoleDesc: "Guided interview intake and personal health records.",
     newPatientPrompt: "First time at this hospital?",
     createAccountLink: "Create New Patient Account →",
     alreadyRegisteredPrompt: "Already an existing patient?",
@@ -82,24 +119,24 @@ export const UI_TRANSLATIONS = {
     prefLang: "Preferred Language",
     chiefComplaint: "Reason for visit / Chief complaint",
     complaintPlaceholder: "Briefly describe your symptoms (e.g. headache for 2 days)",
-    consentAgreement: "I give informed consent for clinical case-taking, adaptive questioning, and secure local hospital storage before my doctor consultation.",
+    consentAgreement: "I consent to pre-consultation case-taking and physician review.",
     registerButton: "Create Patient Account & Begin Intake",
     registering: "Creating account...",
 
     // Patient Portal
-    portalHeading: "Welcome to Your Patient Intake Portal",
-    portalSubheading: "Complete your clinical intake journey below before your appointment with the doctor.",
+    portalHeading: "Patient Intake Portal",
+    portalSubheading: "Complete your pre-consultation intake before your doctor visit.",
     step1Title: "Step 1: Registered",
     step1Badge: "✓ Consent Verified",
     step1Heading: "Demographics & Consent",
-    step1Desc: "Your demographics, contact details, and informed consent for case-taking are safely recorded in local hospital storage.",
+    step1Desc: "Demographics, contact info, and intake consent recorded.",
     step2Title: "Step 2: Documents",
     step2Heading: "Upload Prescriptions",
-    step2Desc: "Upload doctor prescriptions or test reports (PDF, JPG, PNG). Our on-device RapidOCR model extracts text with zero cloud dependency.",
+    step2Desc: "Upload prescriptions or test reports for local text extraction.",
     step2Button: "Upload Prescriptions",
     step3Title: "Step 3: Interview",
     step3Heading: "Adaptive Case-Taking",
-    step3Desc: "Answer an adaptive, intelligent questionnaire about your symptoms, medical history, medications, and allergies to prepare for the doctor.",
+    step3Desc: "Answer guided questions about your symptoms and medical history.",
     startInterview: "Start Adaptive Case-Taking",
     resumeInterview: "Resume Clinical Interview",
     reviewCase: "Review Completed Case",
@@ -165,6 +202,40 @@ export const UI_TRANSLATIONS = {
   },
 
   hi: {
+    // AI Clinical Insights
+    aiClinicalInsights: "एआई नैदानिक अंतर्दृष्टि",
+    aiInsights: "एआई अंतर्दृष्टि",
+    aiGeneratedUnverified: "एआई-जनरेटेड, असत्यापित",
+    doctorVerified: "डॉक्टर द्वारा सत्यापित",
+    aiNoticeText: "PatientCase AI चिकित्सक समीक्षा के लिए स्रोत-उद्धृत, एआई-जनित सुझाव प्रदान करता है। यह कोई स्वायत्त निर्णय नहीं लेता है।",
+    urgencyEmergency: "आपातकालीन (EMERGENCY)",
+    urgencyUrgent: "अतिआवश्यक (URGENT)",
+    urgencyRoutine: "नियमित (ROUTINE)",
+    runAIAnalysis: "एआई विश्लेषण चलाएं",
+    runningAnalysis: "एआई पाइपलाइन चल रही है...",
+    documentedDiagnoses: "दस्तावेजीकृत निदान",
+    possibleDiagnoses: "संभावित विचार (डिफरेंशियल)",
+    abnormalLabs: "असामान्य और गंभीर लैब परिणाम",
+    allLabs: "सभी निकाले गए लैब परीक्षण",
+    computedTrends: "कंप्यूटेड लैब रुझान",
+    riskScores: "जोखिम स्कोर (गणनाबद्ध)",
+    treatmentReference: "साक्ष्य-आधारित उपचार संदर्भ",
+    aiCaseSummary: "एआई ड्राफ्ट सारांश",
+    questionsToAsk: "मरीज से पूछने योग्य प्रश्न",
+    accept: "स्वीकार करें",
+    edit: "संपादित करें",
+    reject: "अस्वीकार करें",
+    caseLockedNotice: "चिकित्सक समीक्षा द्वारा केस अंतिम व लॉक कर दिया गया है। सभी अंतर्दृष्टि केवल पढ़ने योग्य हैं।",
+    notCalculable: "गणना संभव नहीं",
+    calculateProvisional: "उपलब्ध डेटा से गणना करें (अस्थायी)",
+    sourceEvidence: "साक्ष्य / स्रोत उद्धरण",
+    guidelineQuote: "दिशानिर्देश सिफारिश",
+    saveEdit: "संपादन सहेजें",
+    cancel: "रद्द करें",
+    rejectionReason: "अस्वीकृति का कारण",
+    originalScan: "मूल मेडिकल दस्तावेज़",
+    extractedEntities: "निकाली गई संस्थाएं", 
+
     // Shell & Navigation
     menu: "मेनू",
     general: "सामान्य",
@@ -199,12 +270,12 @@ export const UI_TRANSLATIONS = {
 
     // Login & Auth
     loginTitle: "PatientCase AI",
-    loginSubtitle: "क्लिनिकल केस-टेकिंग और मरीज़ इंटेक प्रणाली",
+    loginSubtitle: "क्लिनिकल केस-टेकिंग और चिकित्सक समीक्षा प्रणाली।",
     signInTab: "लॉग इन करें",
     signUpTab: "नए मरीज़ का पंजीकरण",
-    quickDemoRoles: "त्वरित डेमो भूमिका चयन:",
-    existingPatientNotice: "अस्पताल में पहले से पंजीकृत मरीज़ खाते में प्रवेश करें।",
-    patientRoleDesc: "पंजीकृत मरीज़ खाते में लॉग इन करता है।",
+    quickDemoRoles: "डेमो भूमिका चुनें:",
+    existingPatientNotice: "मौजूदा मरीज़ खाते में प्रवेश करें।",
+    patientRoleDesc: "मार्गदर्शित इनटेक प्रश्नावली और व्यक्तिगत स्वास्थ्य रिकॉर्ड।",
     newPatientPrompt: "क्या आप अस्पताल में पहली बार आए हैं?",
     createAccountLink: "नया मरीज़ खाता बनाएं →",
     alreadyRegisteredPrompt: "क्या पहले से पंजीकृत हैं?",
@@ -229,24 +300,24 @@ export const UI_TRANSLATIONS = {
     prefLang: "पसंदीदा भाषा",
     chiefComplaint: "आने का मुख्य कारण / मुख्य तकलीफ",
     complaintPlaceholder: "अपने लक्षणों का संक्षिप्त विवरण दें (उदा. 2 दिन से सिरदर्द)",
-    consentAgreement: "मैं डॉक्टर के परामर्श से पहले क्लिनिकल केस-टेकिंग, सवालों के जवाब और सुरक्षित स्थानीय अस्पताल भंडारण के लिए अपनी सहमति देता/देती हूँ।",
+    consentAgreement: "मैं प्री-कंसल्टेशन केस-टेकिंग और डॉक्टर समीक्षा के लिए सहमति देता/देती हूँ।",
     registerButton: "खाता बनाएं और सवाल-जवाब शुरू करें",
     registering: "खाता बनाया जा रहा है...",
 
     // Patient Portal
-    portalHeading: "आपके मरीज़ इंटेक पोर्टल में आपका स्वागत है",
-    portalSubheading: "डॉक्टर से मिलने से पहले कृपया अपनी स्वास्थ्य जानकारी यहाँ दर्ज करें।",
+    portalHeading: "मरीज़ इनटेक पोर्टल",
+    portalSubheading: "डॉक्टर परामर्श से पहले अपनी स्वास्थ्य जानकारी दर्ज करें।",
     step1Title: "चरण 1: पंजीकृत",
     step1Badge: "✓ सहमति सत्यापित",
     step1Heading: "पहचान व सहमति",
-    step1Desc: "आपकी उम्र, संपर्क विवरण और केस-टेकिंग के लिए सूचित सहमति स्थानीय अस्पताल भंडारण में सुरक्षित दर्ज कर ली गई है।",
+    step1Desc: "जनसांख्यिकी, संपर्क और इनटेक सहमति दर्ज।",
     step2Title: "चरण 2: दस्तावेज़",
     step2Heading: "पर्चे व नुस्खे अपलोड करें",
-    step2Desc: "डॉक्टर के पुराने पर्चे या टेस्ट रिपोर्ट (PDF, JPG, PNG) अपलोड करें। हमारा ऑन-डिवाइस RapidOCR बिना इंटरनेट के सुरक्षित रूप से काम करता है।",
+    step2Desc: "दवा पर्ची या टेस्ट रिपोर्ट स्थानीय रूप से अपलोड करें।",
     step2Button: "पर्चे अपलोड करें",
     step3Title: "चरण 3: स्वास्थ्य प्रश्नावली",
     step3Heading: "अनुकूली क्लिनिकल सवाल-जवाब",
-    step3Desc: "डॉक्टर के परामर्श की तैयारी के लिए अपने लक्षणों, पुरानी बीमारियों, दवाओं और एलर्जी के बारे में आसान सवालों के जवाब दें।",
+    step3Desc: "अपने लक्षणों और मेडिकल हिस्ट्री के आसान सवालों के उत्तर दें।",
     startInterview: "सवाल-जवाब शुरू करें",
     resumeInterview: "सवाल-जवाब जारी रखें",
     reviewCase: "पूरा विवरण देखें",
@@ -312,6 +383,40 @@ export const UI_TRANSLATIONS = {
   },
 
   mr: {
+    // AI Clinical Insights
+    aiClinicalInsights: "एआय क्लिनिकल अंतर्दृष्टी",
+    aiInsights: "एआय अंतर्दृष्टी",
+    aiGeneratedUnverified: "एआय-निर्मित, पडताळणी बाकी",
+    doctorVerified: "डॉक्टरांनी पडताळलेले",
+    aiNoticeText: "PatientCase AI डॉक्टरांच्या पुनरावलोकनासाठी संदर्भ-उद्धृत, एआय-व्युत्पन्न सूचना देते. हे कोणतेही स्वायत्त निर्णय घेत नाही.",
+    urgencyEmergency: "तातडीची आणीबाणी (EMERGENCY)",
+    urgencyUrgent: "अतिआवश्यक (URGENT)",
+    urgencyRoutine: "नियमित (ROUTINE)",
+    runAIAnalysis: "एआय विश्लेषण चालवा",
+    runningAnalysis: "एआय पाइपलाइन सुरू आहे...",
+    documentedDiagnoses: "नोंदणीकृत निदान",
+    possibleDiagnoses: "संभाव्य विचार (डिफरेंशियल)",
+    abnormalLabs: "असामान्य व गंभीर प्रयोगशाळा निकाल",
+    allLabs: "सर्व काढलेल्या प्रयोगशाळा चाचण्या",
+    computedTrends: "प्रयोगशाळा ट्रेंड्स",
+    riskScores: "धोका गुणसंख्या",
+    treatmentReference: "मार्गदर्शक उपचार संदर्भ",
+    aiCaseSummary: "एआय मसुदा सारांश",
+    questionsToAsk: "रुग्णाला विचारण्याचे प्रश्न",
+    accept: "स्वीकारा",
+    edit: "संपादित करा",
+    reject: "नाकारा",
+    caseLockedNotice: "डॉक्टरांच्या अंतिम पडताळणीनंतर केस लॉक करण्यात आली आहे. सर्व माहिती केवळ वाचण्यासाठी उपलब्ध आहे.",
+    notCalculable: "गणना शक्य नाही",
+    calculateProvisional: "उपलब्ध माहितीवरून मोजा (तात्पुरते)",
+    sourceEvidence: "पुरावा / मूळ संदर्भ",
+    guidelineQuote: "मार्गदर्शक तत्त्व शिफारस",
+    saveEdit: "बदल जतन करा",
+    cancel: "रद्द करा",
+    rejectionReason: "नाकारण्याचे कारण",
+    originalScan: "मूळ वैद्यकीय दस्तऐवज",
+    extractedEntities: "काढलेली घटक माहिती", 
+
     // Shell & Navigation
     menu: "मेनू",
     general: "सामान्य",
@@ -346,12 +451,12 @@ export const UI_TRANSLATIONS = {
 
     // Login & Auth
     loginTitle: "PatientCase AI",
-    loginSubtitle: "क्लिनिकल केस-टेकिंग आणि रुग्ण इनटेक प्रणाली",
+    loginSubtitle: "क्लिनिकल केस-टेकिंग आणि डॉक्टर पुनरावलोकन प्रणाली.",
     signInTab: "लॉग इन करा",
     signUpTab: "नवीन रुग्ण नोंदणी",
-    quickDemoRoles: "त्वरित डेमो भूमिका निवडा:",
-    existingPatientNotice: "रुग्णालयातील आधीच नोंदणीकृत रुग्ण खात्यात प्रवेश करा.",
-    patientRoleDesc: "नोंदणीकृत रुग्ण खात्यात लॉग इन करते.",
+    quickDemoRoles: "डेमो भूमिका निवडा:",
+    existingPatientNotice: "विद्यमान रुग्ण खात्यात प्रवेश करा.",
+    patientRoleDesc: "मार्गदर्शित इनटेक प्रश्नावली आणि वैयक्तिक आरोग्य रेकॉर्ड.",
     newPatientPrompt: "रुग्णालयात पहिल्यांदाच आला आहात का?",
     createAccountLink: "नवीन रुग्ण खाते तयार करा →",
     alreadyRegisteredPrompt: "आधीच नोंदणी केली आहे का?",
@@ -376,24 +481,24 @@ export const UI_TRANSLATIONS = {
     prefLang: "पसंतीची भाषा",
     chiefComplaint: "येण्याचे मुख्य कारण / मुख्य त्रास",
     complaintPlaceholder: "आपल्या त्रासाचे थोडक्यात वर्णन करा (उदा. २ दिवसांपासून डोकेदुखी)",
-    consentAgreement: "मी डॉक्टरांच्या सल्ल्यापूर्वी क्लिनिकल केस-टेकिंग, प्रश्नांची उत्तरे आणि सुरक्षित स्थानिक रुग्णालयीन साठवणीसाठी माझी संमती देतो/देते.",
+    consentAgreement: "मी प्री-कंसल्टेशन केस-टेकिंग आणि डॉक्टर पुनरावलोकनासाठी संमती देतो/देते.",
     registerButton: "खाते तयार करा आणि माहिती सुरू करा",
     registering: "खाते तयार होत आहे...",
 
     // Patient Portal
-    portalHeading: "तुमच्या रुग्ण इनटेक पोर्टलवर स्वागत आहे",
-    portalSubheading: "डॉक्टरांना भेटण्यापूर्वी कृपया आपली आरोग्यविषयक माहिती येथे पूर्ण करा.",
+    portalHeading: "रुग्ण इनटेक पोर्टल",
+    portalSubheading: "डॉक्टरांच्या भेटीपूर्वी आपली आरोग्यविषयक माहिती पूर्ण करा.",
     step1Title: "टप्पा १: नोंदणीकृत",
     step1Badge: "✓ संमती सत्यापित",
     step1Heading: "ओळख व संमती",
-    step1Desc: "आपले वय, संपर्क माहिती आणि केस-टेकिंग संमती स्थानिक रुग्णालयीन साठवणीत सुरक्षितपणे नोंदवली गेली आहे.",
+    step1Desc: "लोकसंख्याशास्त्र, संपर्क आणि इनटेक संमती नोंदवली.",
     step2Title: "टप्पा २: कागदपत्रे",
     step2Heading: "प्रिस्क्रिप्शन व रिपोर्ट अपलोड करा",
-    step2Desc: "डॉक्टरांचे जुने प्रिस्क्रिप्शन किंवा लॅब रिपोर्ट (PDF, JPG, PNG) अपलोड करा. आमचे ऑन-डिव्हाइस RapidOCR इंटरनेटशिवाय सुरक्षितपणे काम करते.",
+    step2Desc: "प्रिस्क्रिप्शन किंवा लॅब रिपोर्ट स्थानिकरित्या अपलोड करा.",
     step2Button: "प्रिस्क्रिप्शन अपलोड करा",
     step3Title: "टप्पा ३: आरोग्य मुलाखत",
     step3Heading: "अनुकूली क्लिनिकल मुलाखत",
-    step3Desc: "डॉक्टरांच्या तपासणीच्या तयारीसाठी आपल्या लक्षणांविषयी, जुनाट आजारांविषयी, औषधांविषयी आणि ॲलर्जीविषयी सोप्या प्रश्नांची उत्तरे द्या.",
+    step3Desc: "आपल्या लक्षणांविषयी आणि वैद्यकीय इतिहासाबद्दल सोप्या प्रश्नांची उत्तरे द्या.",
     startInterview: "मुलाखत सुरू करा",
     resumeInterview: "मुलाखत पुढे सुरू ठेवा",
     reviewCase: "पूर्ण तपशील पहा",
@@ -488,133 +593,11 @@ export function parseServerDate(ts) {
 
 // Merge page-level strings (clinician pages, intake pages, shared UI)
 for (const lang of Object.keys(UI_TRANSLATIONS)) {
-  UI_TRANSLATIONS[lang] = { ...PAGE_TRANSLATIONS[lang], ...INTAKE_TRANSLATIONS[lang], ...UI_TRANSLATIONS[lang] };
+  UI_TRANSLATIONS[lang] = { ...PAGE_TRANSLATIONS[lang], ...INTAKE_TRANSLATIONS[lang], ...UI_TRANSLATIONS[lang], ...AI_TRANSLATIONS[lang], ...VISIT_TRANSLATIONS[lang] };
 }
 
-/**
- * Question fallback dictionary to ensure instant zero-latency multilingual rendering
- */
-export const LOCAL_QUESTION_TRANSLATIONS = {
-  chief_complaint: {
-    en: {
-      text: "What is troubling you the most today?",
-      help: "Choose the closest match or select Other to describe your symptom.",
-      choices: ["Headache", "Abdominal pain", "Chest discomfort", "Fever", "Cough", "Back pain", "Other"],
-    },
-    hi: {
-      text: "आज आपको सबसे ज्यादा क्या परेशानी या तकलीफ हो रही है?",
-      help: "सबसे मिलता-जुलता लक्षण चुनें या अपना लक्षण बताएं।",
-      choices: ["सिरदर्द (Headache)", "पेट दर्द (Abdominal pain)", "सीने में बेचैनी (Chest discomfort)", "बुखार (Fever)", "खांसी (Cough)", "पीठ दर्द (Back pain)", "अन्य (Other)"],
-    },
-    mr: {
-      text: "आज तुम्हाला सर्वात जास्त काय त्रास किंवा समस्या जाणवत आहे?",
-      help: "सर्वात जवळचा पर्याय निवडा किंवा आपले लक्षण सांगा.",
-      choices: ["डोकेदुखी (Headache)", "पोटदुखी (Abdominal pain)", "छातीत अस्वस्थता (Chest discomfort)", "ताप (Fever)", "खोकला (Cough)", "पाठदुखी (Back pain)", "इतर (Other)"],
-    },
-  },
-  symptom_duration: {
-    en: {
-      text: "How long have you had this problem?",
-      help: "Approximate duration helps determine acute vs chronic presentation.",
-      choices: ["Less than a day", "1 to 3 days", "4 to 7 days", "More than a week", "Months or longer"],
-    },
-    hi: {
-      text: "यह समस्या आपको कितने समय से है?",
-      help: "अनुमानित समय से यह समझने में मदद मिलती है कि बीमारी नई है या पुरानी।",
-      choices: ["एक दिन से कम (Less than a day)", "1 से 3 दिन (1 to 3 days)", "4 से 7 दिन (4 to 7 days)", "एक सप्ताह से अधिक (More than a week)", "महीनों या उससे अधिक (Months or longer)"],
-    },
-    mr: {
-      text: "हा त्रास तुम्हाला किती दिवसांपासून किंवा वेळेपासून आहे?",
-      help: "अंदाजे कालावधीमुळे आजाराचे स्वरूप समजण्यास मदत होते.",
-      choices: ["एका दिवसापेक्षा कमी (Less than a day)", "१ ते ३ दिवस (1 to 3 days)", "४ ते ७ दिवस (4 to 7 days)", "आठवड्यापेक्षा जास्त (More than a week)", "काही महिने किंवा अधिक (Months or longer)"],
-    },
-  },
-  symptom_severity: {
-    en: {
-      text: "How severe is your discomfort right now?",
-      help: "1 is very mild, 10 is the worst pain imaginable.",
-      choices: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
-    },
-    hi: {
-      text: "इस समय आपकी तकलीफ कितनी गंभीर है?",
-      help: "1 बहुत हल्का है, 10 असहनीय दर्द है।",
-      choices: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
-    },
-    mr: {
-      text: "सध्या तुमचा त्रास किती तीव्र आहे?",
-      help: "१ म्हणजे अगदी सौम्य, १० म्हणजे असह्य वेदना.",
-      choices: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
-    },
-  },
-  pain_location: {
-    en: {
-      text: "Where exactly is the pain or discomfort located?",
-      help: "Specific anatomical location provides key clinical context.",
-      choices: ["Upper abdomen", "Lower right abdomen", "Lower left abdomen", "Around the navel", "Left chest", "Center chest", "Forehead / temples", "Entire head", "Lower back", "Other location"],
-    },
-    hi: {
-      text: "दर्द या तकलीफ शरीर में ठीक किस जगह पर हो रही है?",
-      help: "सटीक जगह बताने से डॉक्टर को जांच में आसानी होती है।",
-      choices: ["पेट का ऊपरी हिस्सा (Upper abdomen)", "पेट का निचला दायां हिस्सा (Lower right abdomen)", "पेट का निचला बायां हिस्सा (Lower left abdomen)", "नाभि के आसपास (Around the navel)", "सीने के बाईं ओर (Left chest)", "सीने के बीच में (Center chest)", "माथा / कनपटी (Forehead / temples)", "पूरा सिर (Entire head)", "पीठ का निचला हिस्सा (Lower back)", "अन्य स्थान (Other location)"],
-    },
-    mr: {
-      text: "वेदना किंवा त्रास शरीरात नक्की कोणत्या ठिकाणी जाणवत आहे?",
-      help: "नक्की जागा सांगितल्याने डॉक्टरांना तपासणी करणे सोपे होते.",
-      choices: ["पोटाचा वरचा भाग (Upper abdomen)", "पोटाचा उजवा खालचा भाग (Lower right abdomen)", "पोटाचा डावा खालचा भाग (Lower left abdomen)", "बेंबीच्या भोवती (Around the navel)", "छातीचा डावा भाग (Left chest)", "छातीच्या मध्यभागी (Center chest)", "कपाळ / कानशिले (Forehead / temples)", "संपूर्ण डोके (Entire head)", "कमरेचा भाग (Lower back)", "इतर जागा (Other location)"],
-    },
-  },
-  current_medications: {
-    en: {
-      text: "Are you currently taking any prescription medicines, supplements, or regular tablets?",
-      help: "Include blood pressure, diabetes, thyroid, or daily vitamins.",
-      choices: ["No, none", "Yes, regularly", "Yes, occasionally"],
-    },
-    hi: {
-      text: "क्या आप वर्तमान में कोई नियमित दवाइयां, गोलियां या सप्लीमेंट्स ले रहे हैं?",
-      help: "बीपी, शुगर, थायरॉइड या दैनिक विटामिन शामिल करें।",
-      choices: ["नहीं, कोई नहीं (No, none)", "हां, नियमित रूप से (Yes, regularly)", "हां, कभी-कभी (Yes, occasionally)"],
-    },
-    mr: {
-      text: "तुम्ही सध्या काही नियमित औषधे, गोळ्या किंवा सप्लिमेंट्स घेत आहात का?",
-      help: "बीपी, मधुमेह, थायरॉईड किंवा नियमित जीवनसत्त्वे यांचा समावेश करा.",
-      choices: ["नाही, काहीही नाही (No, none)", "होय, नियमितपणे (Yes, regularly)", "होय, कधीतरी (Yes, occasionally)"],
-    },
-  },
-  has_allergies: {
-    en: {
-      text: "Do you have any known allergies to medicines, food, or other substances?",
-      help: "For example penicillin, sulfa, peanuts, contrast dye, dust.",
-      choices: ["No known allergies", "Yes, to medicines", "Yes, to food or other substances", "Not sure"],
-    },
-    hi: {
-      text: "क्या आपको किसी दवा, भोजन या अन्य पदार्थ से कोई एलर्जी है?",
-      help: "जैसे पेनिसिलिन, सल्फा, मूंगफली या धूल।",
-      choices: ["कोई ज्ञात एलर्जी नहीं (No known allergies)", "हां, दवाइयों से (Yes, to medicines)", "हां, भोजन या अन्य से (Yes, to food or other)", "पक्का पता नहीं (Not sure)"],
-    },
-    mr: {
-      text: "तुम्हाला कोणत्याही औषधाची, अन्नाची किंवा इतर गोष्टीची ॲलर्जी आहे का?",
-      help: "उदा. पेनिसिलिन, शेंगदाणे, धूळ इत्यादी.",
-      choices: ["माहित असलेली ॲलर्जी नाही (No known allergies)", "होय, औषधांची (Yes, to medicines)", "होय, अन्नाची किंवा इतर (Yes, to food or other)", "नक्की सांगता येत नाही (Not sure)"],
-    },
-  },
-  has_chronic_conditions: {
-    en: {
-      text: "Do you have any long-term or chronic medical conditions?",
-      help: "Hypertension, diabetes, asthma, thyroid disease, or heart conditions.",
-      choices: ["None", "Hypertension (High BP)", "Type 2 Diabetes", "Asthma", "Hypothyroidism", "Heart disease", "Other"],
-    },
-    hi: {
-      text: "क्या आपको कोई पुरानी या दीर्घकालिक बीमारी है?",
-      help: "जैसे बीपी, शुगर, अस्थमा, थायरॉइड या हृदय रोग।",
-      choices: ["कोई नहीं (None)", "हाई बीपी (High BP)", "डायबिटीज (Type 2 Diabetes)", "अस्थमा (Asthma)", "थायरॉइड (Hypothyroidism)", "हृदय रोग (Heart disease)", "अन्य (Other)"],
-    },
-    mr: {
-      text: "तुम्हाला कोणता जुनाट किंवा दीर्घकालीन आजार आहे का?",
-      help: "उदा. रक्तदाब, मधुमेह, दमा, थायरॉईड किंवा हृदयाचा आजार.",
-      choices: ["काहीही नाही (None)", "उच्च रक्तदाब (High BP)", "मधुमेह (Type 2 Diabetes)", "दमा (Asthma)", "थायरॉईड (Hypothyroidism)", "हृदयरोग (Heart disease)", "इतर (Other)"],
-    },
-  },
-};
+// Question fallback dictionary (generated from the backend; see i18n_questions.js)
+export { LOCAL_QUESTION_TRANSLATIONS };
 
 /**
  * Retrieve question translations with fallback

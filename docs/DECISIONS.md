@@ -23,7 +23,8 @@
 ### D-003: No Alembic migrations found — using init_db() approach
 **Decision:** The backend uses SQLAlchemy Base.metadata.create_all at startup (init_db()) rather than Alembic migrations. This is acceptable for a prototype/SQLite setup. Alembic will be introduced if/when schema changes require migration (M1 onwards if schema changes happen).
 
-**Reason:** No lembic.ini or migrations/ directory was found in PatientCase_AI/backend. The equirements.txt lists lembic==1.13.1 (installed but not configured). For the current SQLite prototype, init_db() is sufficient. Adding Alembic is tracked as a follow-up.
+**Reason:** No lembic.ini or migrations/ directory was found in PatientCase_AI/backend. The 
+equirements.txt lists lembic==1.13.1 (installed but not configured). For the current SQLite prototype, init_db() is sufficient. Adding Alembic is tracked as a follow-up.
 
 ---
 
@@ -496,3 +497,79 @@ Both source values (`source_a`/`value_a` and `source_b`/`value_b`) are strictly 
 - **Removed Directory Junction Reparse Points:** Replaced previous sibling Windows NTFS junctions with real physical directories directly within the workspace.
 - **Verification:** Reinstalled and validated venv script launchers (`pytest.exe`, `uvicorn.exe`) and verified 100% test pass rate across both suites (98 backend pytest + 75 frontend vitest = 173/173 tests passing).
 
+
+---
+
+## Milestone 17 Decisions — AI Clinical Insights Layer (2026-10-31)
+
+Principle for every decision below: *The LLM proposes. Code verifies. The doctor decides.* Where the task left a choice open, the safest option was taken.
+
+### D-052: Three LLM providers behind one interface
+**Decision:** `generate(task, system_prompt, user_content, json_schema, *, images=None)` with `hosted` (official `anthropic` SDK), `local` (Ollama OpenAI-compatible endpoint, ~3B model, `temperature=0`, `num_ctx=4096`, a semaphore of 1) and `mock` (deterministic, used by all tests). `LLM_PROVIDER` selects the provider at call time.
+**Why:** the app must work offline on 8 GB RAM / 4 GB VRAM and tests must not touch the network.
+
+### D-053: Structured outputs instead of forced tool use
+**Decision:** the hosted provider uses `output_config.format` with a JSON schema. Every schema sets `additionalProperties: false` and lists all properties as required; missing values are empty strings that code converts to `None`.
+**Why:** current Sonnet models reject forced `tool_choice` with a 400, and structured outputs guarantee parseable JSON. Retries and timeouts are delegated to the SDK (`max_retries`, `timeout`).
+
+### D-054: Untrusted data never enters the system prompt
+**Decision:** system prompts are fixed, versioned strings (`prompts.py`, `PROMPT_VERSION`). Document text and patient answers travel only in the user message inside a `<case_data>` block that the system prompt declares untrusted; a closing tag inside the data is escaped.
+**Why:** prompt-injection defense. Red-team tests check that injected text never reaches a system prompt.
+
+### D-055: Evidence catalogue and output validator
+**Decision:** the LLM sees an evidence catalogue of grounded facts with refs (`interview:<key>`, `doc:<id>`, `lab:<id>`, `dx:<id>`, `med:<id>`, `trend:<test>`, `score:<name>`). Every claim must cite a ref that exists, any quote must appear in that source, numbers must be traceable to the source or to code-computed values, and definitive or instruction-like wording is rejected. Failing items are dropped (findings) or the whole item is dropped (no supporting evidence); notes are stored on the job.
+**Why:** an LLM claim is only kept if code can verify it.
+
+### D-056: Grounding before engines
+**Decision:** extracted values are checked against the OCR text; only grounded facts feed the engines. Printed reference limits must also appear in the text, otherwise they are discarded (the row becomes `range_not_available`). Ungrounded items are stored with `needs_review` and are never used. A regex extraction runs alongside and disagreements are stored as `extraction_disagreement`.
+**Why:** "never invent a range"; hallucinated values must not turn into flags or scores.
+
+### D-057: Missing inputs are never defaulted
+**Decision:** removed the defaults that assumed `air` and `alert` for NEWS2 and the substring checks that turned "no mention of hypertension" into `False` for CHA₂DS₂-VASc. A comorbidity is `True` only when documented or reported, `False` only when the patient explicitly said they have no chronic conditions, otherwise unknown → `not_calculable`. CURB-65 urea is converted only when the unit is known.
+**Why:** Missing ≠ Negative. Scores included: qSOFA, CURB-65, NEWS2, CHA₂DS₂-VASc only (the intake does not collect inputs for others).
+
+### D-058: Trend rules need a known time span
+**Decision:** a rule with `time_window_days` matches only when both dates are known and within the window. Series are sorted by printed date and include the same patient's earlier encounters; mixed, unconvertible units are not compared.
+**Why:** an undated pair could otherwise be labelled "acute".
+
+### D-059: Background job with idempotent re-runs
+**Decision:** `POST /run` returns 202 and runs the pipeline as a FastAPI background task with its own DB session; the UI polls `GET /api/analysis/{id}`. A second run while one is active returns 409. Each run deletes the rows it derives (labs, entities, trends, scores, open engine conflicts, open red flags, pending AI insights) and keeps insights a doctor already decided.
+**Why:** the UI must not block, and repeated runs must not duplicate data or erase decisions.
+
+### D-060: Graceful degradation when the LLM is down
+**Decision:** availability is checked up front and on every call. When unavailable, deterministic engines still run, extraction falls back to the regex path (provenance `regex_extracted_unverified`), AI features are skipped, and the job ends in status `unavailable`. The UI shows a clear message.
+
+### D-061: Guideline library with FTS5 and sample content
+**Decision:** passages live in `GUIDELINE_PASSAGES` with an SQLite FTS5 index (`guideline_passages_fts`, bm25 ranking, LIKE fallback). Sample passages are in `config/guidelines_sample.json`, every one labelled `SAMPLE – replace with verified source` and attributed to no real publication. `scripts/ingest_guidelines.py` loads verified sources (`--replace` to remove samples). A dose is shown only if quoted verbatim from the cited passage; drugs named are cross-checked against allergies and the interaction table.
+
+### D-062: Vision path only in hosted mode, never auto-trusted
+**Decision:** low-confidence images go to the hosted vision model; results are stored as `vision_fallback` entities with `grounded=false` and `review_status=read_from_handwriting_verify`. Local mode routes them to `needs_review`. The earlier implementation passed the wrong image keys and always failed; fixed.
+
+### D-063: AI follow-up questions behind a flag and a safety filter
+**Decision:** `AI_FOLLOWUPS_ENABLED` (default off). A proposal that maps to the question bank is left to the deterministic flow; otherwise it must be one short question with no disease names, no leading phrasing and no definitive wording. AI questions are scoped to their encounter (they were previously visible to every encounter).
+
+### D-064: Rule-based priority alerts are not AI output
+**Decision:** red-flag urgency comes from deterministic rules, so it is shown to doctors and staff on the dashboard. AI insights stay doctor/admin-only (403 for patients and staff, tested on every AI endpoint).
+
+### D-065: Honest evaluation
+**Decision:** the eval harness runs every case through the real pipeline and generates `docs/AI_EVAL_REPORT.md`; no number is typed in by hand. The previous report contained hard-coded values (vision recall, latency, token usage) and red-team cases counted as passed without checks; it was replaced. Metrics that need a hosted key (vision recall, real token usage) are reported as "not measured".
+
+### D-066: Alembic chain repaired
+**Decision:** the AI migration branched from an old revision and created a second head; it now follows `2fa2d5d870dc`. A new revision `8c9d0e1f2a3b` adds job usage/notes, `document_entities.review_status` and the FTS5 table.
+
+---
+
+## Milestone 18 Decisions — Automatic analysis and complaint-driven interview (2026-10-31)
+
+### D-067: Analysis runs automatically
+**Decision:** the analysis is triggered by patient activity instead of a doctor's button: debounced on each saved answer, immediate on interview completion and on processed documents. Per encounter at most one run is scheduled or running (a request during a run schedules exactly one more), and all runs (automatic and manual) are serialized globally.
+**Why:** the doctor should see a ready analysis when opening the case. Debouncing bounds hosted-API cost; serialization avoids SQLite write contention and protects small local models. Finalized cases and cases without consent are never analysed. Each automatic run writes an `AI_ANALYSIS_AUTO_STARTED` audit event with actor `system`.
+
+### D-068: Analyzed Conclusion is an AI insight, checked like the others
+**Decision:** a new `analyzed_conclusion` LLM task writes 2–4 sentences plus cited key findings, next steps and information gaps. Code rejects definitive or instruction-like wording and untraceable numbers, keeps only resolvable findings, and attaches the urgency and the considerations that passed validation (the model cannot add new ones to that list). It is stored as `ai_generated_unverified` with Accept / Edit / Reject and shown to doctors only (dashboard and AI tab). A rule-based overview (reason, urgency, red flags, abnormal labs, conflicts) is always computed so the dashboard has content when the LLM is down.
+
+### D-069: Free-text reason for visit drives the questionnaire
+**Decision:** replaced the fixed disease-choice first question and its disease-specific branches with a free-text reason, generic characterisation questions for every complaint, and keyword-selected symptom modules. Matching is deterministic and auditable (keyword lists in `complaint_modules.py`, covering English, transliterated Hindi/Marathi and Devanagari) rather than LLM-generated, so the interview works offline and every patient-facing question is reviewed and translated in advance. AI follow-ups remain optional (`AI_FOLLOWUPS_ENABLED`). Localized choice answers ("हां (Yes)") are mapped to their English value for branching. Removed questions are retired, not deleted, so existing answers survive.
+
+### D-070: New rule-based red flags from module answers
+**Decision:** anaphylaxis-type swelling (EMERGENCY), GI bleeding, coughing blood, breathlessness at rest and thoughts of self-harm (URGENT) are detected by code from the new answers.

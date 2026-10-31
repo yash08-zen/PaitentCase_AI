@@ -59,6 +59,21 @@ class FlagStatus(str, enum.Enum):
     resolved = "resolved"
 
 
+class AIInsightStatus(str, enum.Enum):
+    pending = "pending"
+    accepted = "accepted"
+    edited = "edited"
+    rejected = "rejected"
+
+
+class JobStatus(str, enum.Enum):
+    pending = "pending"
+    running = "running"
+    completed = "completed"
+    failed = "failed"
+    unavailable = "unavailable"
+
+
 # ── Models ────────────────────────────────────────────────────────────────────
 
 class User(Base):
@@ -120,6 +135,14 @@ class Encounter(Base):
     review_flags = relationship("ReviewFlag", back_populates="encounter", cascade="all, delete-orphan")
     case_summary = relationship("CaseSummary", back_populates="encounter", uselist=False, cascade="all, delete-orphan")
 
+    # AI Clinical Insights Layer additions
+    ai_insights = relationship("AIInsight", back_populates="encounter", cascade="all, delete-orphan")
+    lab_results = relationship("LabResult", back_populates="encounter", cascade="all, delete-orphan")
+    document_entities = relationship("DocumentEntity", back_populates="encounter", cascade="all, delete-orphan")
+    trend_flags = relationship("TrendFlag", back_populates="encounter", cascade="all, delete-orphan")
+    risk_scores = relationship("RiskScore", back_populates="encounter", cascade="all, delete-orphan")
+    llm_jobs = relationship("LLMJob", back_populates="encounter", cascade="all, delete-orphan")
+
 
 class Question(Base):
     __tablename__ = "questions"
@@ -167,7 +190,7 @@ class Document(Base):
     id = Column(Integer, primary_key=True, index=True)
     patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False)
     encounter_id = Column(Integer, ForeignKey("encounters.id"), nullable=True)
-    document_type = Column(String(50), nullable=True)       # prescription | report | other
+    document_type = Column(String(50), nullable=True)       # prescription | lab_report | discharge_summary | imaging_report | other
     original_filename = Column(String(255), nullable=False)
     stored_path = Column(String(500), nullable=False)        # relative path under UPLOAD_DIR
     file_size_bytes = Column(Integer, nullable=True)
@@ -182,6 +205,8 @@ class Document(Base):
 
     patient = relationship("Patient", back_populates="documents")
     encounter = relationship("Encounter", back_populates="documents")
+    entities = relationship("DocumentEntity", back_populates="document", cascade="all, delete-orphan")
+    lab_results = relationship("LabResult", back_populates="document", cascade="all, delete-orphan")
 
 
 class Conflict(Base):
@@ -189,7 +214,7 @@ class Conflict(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     encounter_id = Column(Integer, ForeignKey("encounters.id"), nullable=False)
-    rule_id = Column(String(50), nullable=True)              # e.g. "RULE-MED-DENIAL", "RULE-ALLERGY-CONFLICT"
+    rule_id = Column(String(50), nullable=True)              # e.g. "RULE-MED-DENIAL", "RULE-ALLERGY-CONFLICT", "RULE-INTERACTION", "RULE-LAB-ABNORMAL", "RULE-DIAGNOSIS-DENIAL", "RULE-WRONG-PATIENT"
     field = Column(String(100), nullable=False)              # which data field conflicts
     source_a = Column(String(100), nullable=False)           # e.g. "patient_reported"
     value_a = Column(Text, nullable=True)
@@ -211,7 +236,7 @@ class ReviewFlag(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     encounter_id = Column(Integer, ForeignKey("encounters.id"), nullable=False)
-    flag_type = Column(String(50), nullable=False)           # missing | conflict | unverified | other
+    flag_type = Column(String(50), nullable=False)           # missing | conflict | unverified | red_flag | other
     description = Column(Text, nullable=False)
     status = Column(Enum(FlagStatus), default=FlagStatus.open)
     created_at = Column(DateTime(timezone=True), default=_now)
@@ -244,9 +269,167 @@ class AuditEvent(Base):
     actor_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     actor_username = Column(String(100), nullable=True)
     actor_role = Column(String(50), nullable=True)
-    action = Column(String(100), nullable=False)          # e.g. LOGIN_SUCCESS, LOGIN_FAILED, LOGOUT, ACCESS_DENIED
-    resource_type = Column(String(100), nullable=True)    # e.g. auth, patient, encounter, document
+    action = Column(String(100), nullable=False)          # e.g. LOGIN_SUCCESS, AI_ANALYSIS_STARTED, AI_INSIGHT_ACCEPTED, etc.
+    resource_type = Column(String(100), nullable=True)    # e.g. auth, patient, encounter, document, ai_insight
     resource_id = Column(String(100), nullable=True)
     change_summary = Column(Text, nullable=True)
     ip_address = Column(String(100), nullable=True)
     timestamp = Column(DateTime(timezone=True), default=_now)
+
+
+# ── AI Clinical Insights Layer Tables ──────────────────────────────────────────
+
+class AIInsight(Base):
+    """
+    Stores individual AI proposals (disease considerations, treatment references,
+    summary suggestions, trend interpretations, follow-ups).
+    Provenance starts as 'ai_generated_unverified' and transitions to 'doctor_verified'
+    only after clinician Accept / Edit.
+    """
+    __tablename__ = "ai_insights"
+
+    id = Column(Integer, primary_key=True, index=True)
+    encounter_id = Column(Integer, ForeignKey("encounters.id"), nullable=False, index=True)
+    insight_type = Column(String(100), nullable=False)  # disease_consideration | treatment_reference | trend_interpretation | case_summary | questions_to_ask | risk_score_interpretation
+    content = Column(JSON, nullable=False)              # Structured insight data
+    evidence = Column(JSON, nullable=True)              # Source citations, spans, question keys
+    status = Column(Enum(AIInsightStatus), default=AIInsightStatus.pending, nullable=False)
+    provenance = Column(String(100), default="ai_generated_unverified", nullable=False)
+    model_name = Column(String(100), nullable=True)
+    prompt_version = Column(String(50), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_now)
+    decided_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    decided_at = Column(DateTime(timezone=True), nullable=True)
+    doctor_edits = Column(JSON, nullable=True)
+
+    encounter = relationship("Encounter", back_populates="ai_insights")
+    decider = relationship("User", foreign_keys=[decided_by])
+
+
+class LabResult(Base):
+    """
+    Structured laboratory rows extracted from lab documents and flagged deterministically.
+    """
+    __tablename__ = "lab_results"
+
+    id = Column(Integer, primary_key=True, index=True)
+    encounter_id = Column(Integer, ForeignKey("encounters.id"), nullable=False, index=True)
+    document_id = Column(Integer, ForeignKey("documents.id"), nullable=True, index=True)
+    test_name = Column(String(150), nullable=False)
+    normalized_test = Column(String(150), nullable=False, index=True)
+    value = Column(Float, nullable=False)
+    unit = Column(String(50), nullable=True)
+    ref_low = Column(Float, nullable=True)
+    ref_high = Column(Float, nullable=True)
+    flag = Column(String(50), nullable=True)  # normal | low | high | critical_low | critical_high | range_not_available
+    test_date = Column(String(50), nullable=True)
+    source_span = Column(String(255), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+    encounter = relationship("Encounter", back_populates="lab_results")
+    document = relationship("Document", back_populates="lab_results")
+
+
+class DocumentEntity(Base):
+    """
+    Grounding-validated entity extracted from medical documents.
+    """
+    __tablename__ = "document_entities"
+
+    id = Column(Integer, primary_key=True, index=True)
+    document_id = Column(Integer, ForeignKey("documents.id"), nullable=False, index=True)
+    encounter_id = Column(Integer, ForeignKey("encounters.id"), nullable=False, index=True)
+    entity_type = Column(String(50), nullable=False)  # diagnosis | medication | procedure | date | doctor | facility
+    value = Column(JSON, nullable=False)
+    raw_text = Column(Text, nullable=True)
+    source_span = Column(String(255), nullable=True)
+    grounded = Column(Boolean, default=True, nullable=False)
+    confidence = Column(Float, nullable=True)
+    provenance = Column(String(50), default="document_extracted_unverified", nullable=False)
+    review_status = Column(String(50), nullable=True)  # grounded | needs_review | read_from_handwriting_verify | regex_disagreement
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+    document = relationship("Document", back_populates="entities")
+    encounter = relationship("Encounter", back_populates="document_entities")
+
+
+class TrendFlag(Base):
+    """
+    Computed clinical lab trend across historical dates.
+    """
+    __tablename__ = "trend_flags"
+
+    id = Column(Integer, primary_key=True, index=True)
+    encounter_id = Column(Integer, ForeignKey("encounters.id"), nullable=False, index=True)
+    test_name = Column(String(150), nullable=False)
+    previous_value = Column(Float, nullable=False)
+    current_value = Column(Float, nullable=False)
+    unit = Column(String(50), nullable=True)
+    delta = Column(Float, nullable=False)
+    percent_change = Column(Float, nullable=False)
+    direction = Column(String(20), nullable=False)  # rising | falling | stable
+    time_span_days = Column(Integer, nullable=True)
+    rule_matched = Column(String(100), nullable=True)
+    clinical_label = Column(String(255), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+    encounter = relationship("Encounter", back_populates="trend_flags")
+
+
+class RiskScore(Base):
+    """
+    Deterministically calculated clinical risk and severity scores (qSOFA, CURB-65, NEWS2, CHA2DS2-VASc).
+    """
+    __tablename__ = "risk_scores"
+
+    id = Column(Integer, primary_key=True, index=True)
+    encounter_id = Column(Integer, ForeignKey("encounters.id"), nullable=False, index=True)
+    score_name = Column(String(100), nullable=False)
+    score_value = Column(Float, nullable=True)
+    status = Column(String(50), default="calculated", nullable=False)  # calculated | not_calculable
+    inputs = Column(JSON, nullable=True)
+    missing_inputs = Column(JSON, nullable=True)
+    formula_version = Column(String(50), nullable=False)
+    interpretation = Column(String(255), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+    encounter = relationship("Encounter", back_populates="risk_scores")
+
+
+class GuidelinePassage(Base):
+    """
+    Local reference library for treatment guidelines.
+    Only retrieved passages may be quoted for dosage guidance.
+    """
+    __tablename__ = "guideline_passages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    source = Column(String(255), nullable=False)
+    version_date = Column(String(50), nullable=False)
+    condition_or_topic = Column(String(150), nullable=False, index=True)
+    section = Column(String(150), nullable=False)
+    passage_text = Column(Text, nullable=False)
+    citations = Column(JSON, nullable=True)
+    is_sample = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+
+class LLMJob(Base):
+    """
+    Background job tracker for asynchronous AI inference workflows.
+    """
+    __tablename__ = "llm_jobs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    encounter_id = Column(Integer, ForeignKey("encounters.id"), nullable=False, index=True)
+    job_type = Column(String(100), nullable=False)
+    status = Column(Enum(JobStatus), default=JobStatus.pending, nullable=False)
+    progress = Column(Float, default=0.0, nullable=False)
+    error_message = Column(Text, nullable=True)
+    usage = Column(JSON, nullable=True)   # per-call provider/model/tokens/latency (no clinical text)
+    notes = Column(JSON, nullable=True)   # validation and degradation notes
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    finished_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+    encounter = relationship("Encounter", back_populates="llm_jobs")

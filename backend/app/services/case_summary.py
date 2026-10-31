@@ -123,14 +123,14 @@ async def build_structured_summary(encounter_id: int, db: AsyncSession) -> Dict[
     sym_fields = [
         make_field("symptom_duration", "Duration", answered.get("symptom_duration"), sources.get("symptom_duration")),
         make_field("symptom_severity", "Severity", answered.get("symptom_severity"), sources.get("symptom_severity"), formatter=lambda v: f"{v} / 10"),
-        make_field("symptom_frequency", "Frequency", answered.get("symptom_frequency"), sources.get("symptom_frequency")),
     ]
-    if "pain_location" in answered:
-        sym_fields.append(make_field("pain_location", "Pain Location", answered.get("pain_location"), sources.get("pain_location")))
-    if "chest_discomfort_exertion" in answered:
-        sym_fields.append(make_field("chest_discomfort_exertion", "Worse with Exertion", answered.get("chest_discomfort_exertion"), sources.get("chest_discomfort_exertion")))
-    if "associated_symptoms" in answered:
-        sym_fields.append(make_field("associated_symptoms", "Associated Symptoms", answered.get("associated_symptoms"), sources.get("associated_symptoms")))
+    # Every other answered symptom question (generic + complaint modules), labelled from the bank
+    from app.services.adaptive_engine import QUESTION_BANK
+    for q in QUESTION_BANK:
+        key = q["key"]
+        if q.get("group") == "symptoms" and key not in ("chief_complaint", "symptom_duration", "symptom_severity") \
+                and key in answered:
+            sym_fields.append(make_field(key, q.get("label") or key, answered.get(key), sources.get(key)))
 
     # 4. Medical & Surgical History Section
     chronic_ans = answered.get("has_chronic_conditions")
@@ -321,14 +321,13 @@ def _format_text_summary(
         "--- SYMPTOM DETAILS ------------------------------------------------------------",
         f"  Duration   : {answered.get('symptom_duration', 'Not provided / unknown')}",
         f"  Severity   : {answered.get('symptom_severity', 'Not provided / unknown')} / 10",
-        f"  Frequency  : {answered.get('symptom_frequency', 'Not provided / unknown')}",
     ]
-    if "pain_location" in answered:
-        lines.append(f"  Location   : {answered.get('pain_location')}")
-    if "chest_discomfort_exertion" in answered:
-        lines.append(f"  Exertion   : {answered.get('chest_discomfort_exertion')}")
-    if "associated_symptoms" in answered:
-        lines.append(f"  Associated : {answered.get('associated_symptoms')}")
+    from app.services.adaptive_engine import QUESTION_BANK
+    for q in QUESTION_BANK:
+        key = q["key"]
+        if q.get("group") == "symptoms" and key not in ("chief_complaint", "symptom_duration", "symptom_severity") \
+                and key in answered:
+            lines.append(f"  {(q.get('label') or key)[:28]:<28}: {answered.get(key)}")
     lines += [
         "  (Source: patient response / patient_reported)",
         "",

@@ -3,6 +3,8 @@ import { useStore } from "../state/store";
 import apiClient from "../api/client";
 import { Empty, Icon, Proto, Ring, Source, Tag, Spinner } from "../components/ui";
 import { fmtT } from "../utils/i18n";
+import AIClinicalInsights from "../components/AIClinicalInsights";
+import { REVIEW_TAB_KEY } from "../components/AIConclusionsPanel";
 
 function ConflictCard({ f, onResolve }) {
   const { t } = useStore();
@@ -110,6 +112,22 @@ export default function DoctorReview({ go }) {
   const [finalizing, setFinalizing] = useState(false);
   const [isFinalized, setIsFinalized] = useState(false);
   const [finalizedInfo, setFinalizedInfo] = useState(null);
+  // 'clinical' | 'ai_insights'; the dashboard's AI panel asks for the AI tab once
+  const [activeTab, setActiveTab] = useState(() => {
+    try {
+      return sessionStorage.getItem(REVIEW_TAB_KEY) === "ai_insights" ? "ai_insights" : "clinical";
+    } catch {
+      return "clinical";
+    }
+  });
+  // Consume the one-time request after mount (initializers may run twice in StrictMode)
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem(REVIEW_TAB_KEY);
+    } catch {
+      // nothing to clear
+    }
+  }, []);
 
   const p = patients.find((x) => x.id === activeId);
   const c = cases[activeId];
@@ -297,6 +315,43 @@ export default function DoctorReview({ go }) {
         </div>
       </div>
 
+      {/* Review Tab Navigation */}
+      <div style={{ display: "flex", gap: 10, margin: "14px 0 18px" }}>
+        <button
+          className={`btn ${activeTab === "clinical" ? "primary" : "out"}`}
+          onClick={() => setActiveTab("clinical")}
+        >
+          <Icon n="clip" size={16} /> {t("review")}
+        </button>
+        <button
+          className={`btn ${activeTab === "ai_insights" ? "primary" : "out"}`}
+          onClick={() => setActiveTab("ai_insights")}
+          style={{ display: "flex", alignItems: "center", gap: 6 }}
+          data-testid="ai-insights-tab-btn"
+        >
+          <Icon n="alert" size={16} /> {t("aiClinicalInsights")}
+          <Tag kind="warn">{t("aiGeneratedUnverified")}</Tag>
+        </button>
+      </div>
+
+      {activeTab === "ai_insights" ? (
+        <AIClinicalInsights
+          encounterId={encounterId}
+          patientId={patientId}
+          isFinalized={isFinalized}
+          onAcceptSummary={(summaryContent) => {
+            if (typeof summaryContent === "object") {
+              const text = Object.entries(summaryContent)
+                .filter(([k]) => k !== "source_references")
+                .map(([k, v]) => `${k.replace(/_/g, " ").toUpperCase()}:\n${typeof v === "object" ? JSON.stringify(v) : v}`)
+                .join("\n\n");
+              setNotesText((prev) => (prev ? `${prev}\n\n${text}` : text));
+            } else if (typeof summaryContent === "string") {
+              setNotesText((prev) => (prev ? `${prev}\n\n${summaryContent}` : summaryContent));
+            }
+          }}
+        />
+      ) : (
       <div className="rv">
         <div className="rvmain">
           {/* Clinical Discrepancies & Contradictions (from M7 engine) */}
@@ -588,6 +643,7 @@ export default function DoctorReview({ go }) {
           </div>
         </div>
       </div>
+      )}
     </>
   );
 }

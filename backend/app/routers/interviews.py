@@ -24,6 +24,7 @@ from app.schemas import (
     ReviewAnswerOut,
 )
 from app.services.adaptive_engine import AdaptiveEngine
+from app.services.auto_analysis import request_analysis
 from app.dependencies import get_current_user
 
 router = APIRouter(prefix="/api/interviews", tags=["Interviews"])
@@ -82,13 +83,15 @@ async def submit_response(
             detail="Cannot modify responses for a finalized encounter",
         )
     engine = AdaptiveEngine(db)
-    return await engine.save_response(
+    saved = await engine.save_response(
         encounter_id=encounter_id,
         question_key=payload.question_key,
         answer=payload.answer,
         source=payload.source or "patient_reported",
         confirmation_status=payload.confirmation_status or "confirmed",
     )
+    request_analysis(encounter_id, "interview_answer")  # debounced automatic analysis
+    return saved
 
 
 @router.post("/{encounter_id}/back", response_model=NextQuestionResponse)
@@ -152,4 +155,6 @@ async def complete_interview(
 ):
     await _get_encounter_or_404(encounter_id, db, current_user)
     engine = AdaptiveEngine(db)
-    return await engine.complete_interview(encounter_id)
+    progress = await engine.complete_interview(encounter_id)
+    request_analysis(encounter_id, "interview_completed", delay=0)
+    return progress

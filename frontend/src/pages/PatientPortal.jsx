@@ -14,6 +14,9 @@ export default function PatientPortal({ go, user }) {
   const [loading, setLoading] = useState(false);
   const [progressData, setProgressData] = useState(null);
   const [updatingLang, setUpdatingLang] = useState(false);
+  const [reason, setReason] = useState("");
+  const [savedReason, setSavedReason] = useState("");
+  const [savingReason, setSavingReason] = useState(false);
 
   const p = patients.find((x) => x.id === activeId) || patients[0];
   const c = cases[p?.id];
@@ -33,6 +36,41 @@ export default function PatientPortal({ go, user }) {
       isMounted = false;
     };
   }, [encounterId]);
+
+  // Load the saved reason for visit (first interview answer)
+  useEffect(() => {
+    if (!encounterId) return;
+    apiClient
+      .getInterviewAnswers(encounterId)
+      .then((answers) => {
+        const cc = (answers || []).find((a) => a.question_key === "chief_complaint");
+        if (cc?.answer) {
+          setSavedReason(cc.answer);
+          setReason(cc.answer);
+        }
+      })
+      .catch(() => {});
+  }, [encounterId]);
+
+  const saveReason = async () => {
+    const text = reason.trim();
+    if (text.length < 3) {
+      notify(t("visitReasonTooShort"), "error");
+      return;
+    }
+    if (!encounterId) return;
+    setSavingReason(true);
+    try {
+      await apiClient.submitResponse(encounterId, "chief_complaint", text);
+      setSavedReason(text);
+      notify(t("visitReasonSaved"));
+      go("interview");
+    } catch (err) {
+      notify(err.message || t("visitReasonTooShort"), "error");
+    } finally {
+      setSavingReason(false);
+    }
+  };
 
   const handleLanguageChange = async (langCode) => {
     setLanguage(langCode);
@@ -98,6 +136,30 @@ export default function PatientPortal({ go, user }) {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Reason for visit: drives the adaptive questionnaire */}
+      <div className="card" style={{ padding: "1.2rem", marginBottom: "1rem", borderLeft: "4px solid var(--accent)" }}>
+        <h3 style={{ margin: "0 0 0.3rem", fontSize: "1.1rem" }}>{t("visitReasonTitle")}</h3>
+        <p className="small soft" style={{ margin: "0 0 0.6rem" }}>{t("visitReasonDesc")}</p>
+        <label className="small" htmlFor="visit-reason" style={{ fontWeight: 600 }}>{t("visitReasonCurrent")}</label>
+        <textarea
+          id="visit-reason"
+          value={reason}
+          placeholder={t("visitReasonPlaceholder")}
+          onChange={(e) => setReason(e.target.value)}
+          rows={3}
+          style={{ width: "100%", padding: "0.6rem", marginTop: "0.3rem", fontSize: "0.95rem" }}
+        />
+        <button
+          className="btn primary"
+          type="button"
+          style={{ marginTop: "0.6rem" }}
+          disabled={savingReason || !encounterId || (savedReason && reason.trim() === savedReason)}
+          onClick={saveReason}
+        >
+          {t("visitReasonSave")} →
+        </button>
       </div>
 
       {/* 3-Step Guided Journey Cards */}

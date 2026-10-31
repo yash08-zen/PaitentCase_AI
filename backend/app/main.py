@@ -28,7 +28,7 @@ from app.core.security_headers import SecurityHeadersMiddleware
 from app.core.logging_config import RequestLoggingMiddleware
 from app.core.error_handlers import register_error_handlers
 
-from app.routers import auth, patients, encounters, interviews, documents, dashboard, encounters_analysis, conflicts, system, voice
+from app.routers import auth, patients, encounters, interviews, documents, dashboard, encounters_analysis, conflicts, system, voice, ai_analysis
 
 
 # ── Lifespan ──────────────────────────────────────────────────────────────────
@@ -40,6 +40,17 @@ async def lifespan(app: FastAPI):
     await init_db()
     await seed_questions()
     await ensure_default_admin()
+    from app.services.llm.manager import HOSTED_CONSENT_LINE, llm_service
+    from app.services.auto_analysis import backfill_unanalyzed
+    queued = await backfill_unanalyzed()
+    if queued:
+        print(f"[startup] Automatic analysis queued for {queued} open case(s) not analysed yet.")
+    if llm_service.mode == "hosted":
+        print(f"[startup] WARNING: LLM_PROVIDER=hosted. {HOSTED_CONSENT_LINE}")
+        if not settings.ANTHROPIC_API_KEY:
+            print("[startup] WARNING: ANTHROPIC_API_KEY is not set; AI features will report llm_unavailable.")
+    else:
+        print(f"[startup] LLM_PROVIDER={llm_service.mode}: no clinical text leaves this machine.")
     yield
     # Shutdown (nothing to clean up for SQLite)
 
@@ -83,6 +94,11 @@ async def seed_questions():
                 exists.conditions = q_data.get("conditions")
                 exists.because = q_data.get("because")
                 exists.skip_why = q_data.get("skip_why")
+        # Retire questions that left the bank (rows stay for existing answers)
+        bank_keys = {q["key"] for q in QUESTION_BANK}
+        for q in (await db.scalars(select(Question))).all():
+            if q.key not in bank_keys and not q.key.startswith("ai_followup_"):
+                q.branching_rules = {"retired": True}
         await db.commit()
     print(f"[startup] Question bank synchronized ({len(QUESTION_BANK)} questions).")
 
@@ -205,6 +221,7 @@ app.include_router(dashboard.router)
 app.include_router(conflicts.router)
 app.include_router(system.router)
 app.include_router(voice.router)
+app.include_router(ai_analysis.router)
 
 
 # ── Root endpoints ────────────────────────────────────────────────────────────

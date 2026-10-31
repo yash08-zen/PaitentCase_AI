@@ -7,10 +7,50 @@ import apiClient, { ApiError } from "../api/client";
 const ROLE_KEY = { doctor: "doctor", staff: "clinicStaff", patient: "patient", admin: "admin" };
 
 const DEMO_PRESETS = [
-  { role: "doctor", label: "Doctor", username: "doctor", password: "Doctor@1234", desc: "Clinical review, conflicts, handoff" },
-  { role: "staff", label: "Clinic Staff", username: "staff", password: "Staff@1234", desc: "Patient registration, document triage" },
-  { role: "patient", label: "Patient", username: "patient", password: "Patient@1234", desc: "Adaptive interview, own records" },
-  { role: "admin", label: "Administrator", username: "admin", password: "Admin@1234", desc: "User management, audit trails" },
+  {
+    role: "doctor",
+    label: "Doctor",
+    username: "doctor",
+    password: "Doctor@1234",
+    desc: {
+      en: "Review case summaries, verify medication conflicts, and complete review.",
+      hi: "केस सारांश की समीक्षा करें और दवाओं के टकराव का समाधान करें।",
+      mr: "केस सारांशाचे पुनरावलोकन करा आणि औषध विसंगती सोडवा.",
+    },
+  },
+  {
+    role: "staff",
+    label: "Clinic Staff",
+    username: "staff",
+    password: "Staff@1234",
+    desc: {
+      en: "Register arriving patients and manage intake document uploads.",
+      hi: "आने वाले मरीज़ों का पंजीकरण करें और दस्तावेज़ अपलोड प्रबंधित करें।",
+      mr: "येणाऱ्या रुग्णांची नोंदणी करा आणि दस्तऐवज अपलोड व्यवस्थापित करा.",
+    },
+  },
+  {
+    role: "patient",
+    label: "Patient",
+    username: "patient",
+    password: "Patient@1234",
+    desc: {
+      en: "Complete guided symptom interview and review personal records.",
+      hi: "लक्षणों के प्रश्नों के उत्तर दें और अपने स्वास्थ्य रिकॉर्ड देखें।",
+      mr: "लक्षणांच्या प्रश्नांची उत्तरे द्या आणि स्वतःचे आरोग्य रेकॉर्ड पहा.",
+    },
+  },
+  {
+    role: "admin",
+    label: "Administrator",
+    username: "admin",
+    password: "Admin@1234",
+    desc: {
+      en: "Manage clinic user accounts, security controls, and audit trails.",
+      hi: "उपयोगकर्ता खाते, सुरक्षा नियंत्रण और ऑडिट लॉग प्रबंधित करें।",
+      mr: "वापरकर्ता खाती, सुरक्षा नियंत्रणे आणि ऑडिट नोंदी व्यवस्थापित करा.",
+    },
+  },
 ];
 
 export default function Login({ onLogin, sessionMessage }) {
@@ -159,8 +199,8 @@ export default function Login({ onLogin, sessionMessage }) {
         </div>
         <ul>
           {[
-            language === "hi" ? "भूमिका आधारित अभिगम नियंत्रण (डॉक्टर, स्टाफ, मरीज़, प्रशासक)" : language === "mr" ? "भूमिका आधारित प्रवेश नियंत्रण (डॉक्टर, कर्मचारी, रुग्ण, प्रशासक)" : "Role-based access enforcement (Doctor, Staff, Patient, Admin)",
-            language === "hi" ? "पूर्ण ऑडिट लॉगिंग के साथ अनुकूली क्लिनिकल नियम इंजन" : language === "mr" ? "संपूर्ण ऑडिट नोंदीसह अनुकूली क्लिनिकल नियम इंजिन" : "Deterministic adaptive rule engine with full audit logging",
+            language === "hi" ? "4 क्लिनिकल भूमिकाओं के लिए भूमिका-आधारित पहुँच" : language === "mr" ? "4 वैद्यकीय भूमिकांसाठी भूमिका-आधारित प्रवेश" : "Role-based access for 4 clinical roles",
+            language === "hi" ? "पूर्ण ऑडिट नोंदीसह अनुकूली नियम इंजिन" : language === "mr" ? "संपूर्ण ऑडिट नोंदीसह अनुकूली नियम इंजिन" : "Deterministic adaptive rule engine with full audit logging",
             language === "hi" ? "चिकित्सक समीक्षा में सहायक प्रोटोटाइप — निदान उपकरण नहीं" : language === "mr" ? "डॉक्टर पुनरावलोकनात सहाय्यक प्रोटोटाइप — निदान साधन नाही" : "Prototype supporting clinician review - not a diagnostic tool",
           ].map((text, idx) => (
             <li key={idx}>
@@ -306,11 +346,11 @@ ${t("password")}: ${newCredentials.password}`).catch(() => {});
                 : "Authenticate with your role-verified credentials."}
             </p>
 
-            <div style={{ margin: "0.8rem 0 0.5rem" }}>
-              <label className="small soft" style={{ display: "block", marginBottom: "0.4rem", fontWeight: 600 }}>
+            <div style={{ margin: "0.7rem 0 0.4rem" }}>
+              <label className="small soft" style={{ display: "block", marginBottom: "0.35rem", fontWeight: 600 }}>
                 {t("quickDemoRoles")}
               </label>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.4rem" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.35rem" }}>
                 {DEMO_PRESETS.map((preset) => (
                   <button
                     key={preset.role}
@@ -324,42 +364,58 @@ ${t("password")}: ${newCredentials.password}`).catch(() => {});
                   </button>
                 ))}
               </div>
-            </div>
 
-            {selectedRole === "patient" && (
-              <div
-                style={{
-                  background: "#f0f7f4",
-                  border: "1px solid #c2e2d5",
-                  borderRadius: "8px",
-                  padding: "0.5rem 0.75rem",
-                  marginBottom: "0.8rem",
-                  fontSize: "0.78rem",
-                  color: "#1c5b43",
-                }}
-              >
-                <b>{language === "hi" ? "अस्पताल के मौजूदा मरीज़:" : language === "mr" ? "रुग्णालयातील विद्यमान रुग्ण:" : "Existing Hospital Patient:"}</b>{" "}
-                {t("existingPatientNotice")}{" "}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAuthMode("signup");
-                    setError(null);
-                  }}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: "var(--accent)",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    textDecoration: "underline",
-                    padding: 0,
-                  }}
-                >
-                  {t("createAccountLink")}
-                </button>
-              </div>
-            )}
+              {/* Minimal 1-liner feature description for the selected role */}
+              {(() => {
+                const activePreset = DEMO_PRESETS.find((p) => p.role === selectedRole) || DEMO_PRESETS[0];
+                return (
+                  <div
+                    style={{
+                      marginTop: "0.45rem",
+                      padding: "0.45rem 0.65rem",
+                      background: "#f4f8f5",
+                      border: "1px solid #d5e5db",
+                      borderRadius: "8px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "0.5rem",
+                      fontSize: "0.76rem",
+                      color: "#1c5b43",
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}>
+                      <Icon n={selectedRole === "doctor" ? "clip" : selectedRole === "staff" ? "plus" : selectedRole === "patient" ? "chat" : "shield"} size={13} />
+                      <span>{activePreset.desc[language] || activePreset.desc.en}</span>
+                    </span>
+                    {selectedRole === "patient" && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAuthMode("signup");
+                          setError(null);
+                        }}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "var(--accent)",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          textDecoration: "underline",
+                          whiteSpace: "nowrap",
+                          fontSize: "0.74rem",
+                          padding: 0,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {t("createAccountLink")}
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
 
             <label>
               {t("username")}
@@ -391,7 +447,7 @@ ${t("password")}: ${newCredentials.password}`).catch(() => {});
               {loading ? <Spinner text={t("signingIn")} /> : `${t("signInButton")} (${(language === "en" ? selectedRole.toUpperCase() : t(ROLE_KEY[selectedRole] || selectedRole))})`}
             </button>
 
-            <div style={{ textAlign: "center", marginTop: "0.9rem" }}>
+            <div style={{ textAlign: "center", marginTop: "0.7rem" }}>
               <span className="small soft">{t("newPatientPrompt")} </span>
               <button
                 type="button"
@@ -405,24 +461,16 @@ ${t("password")}: ${newCredentials.password}`).catch(() => {});
                 {t("createAccountLink")}
               </button>
             </div>
-
-            <p className="small soft center" style={{ marginTop: "0.8rem" }}>
-              {language === "hi"
-                ? "बैकएंड प्रमाणीकरण bcrypt पासवर्ड हैशिंग और JWT RBAC से सुरक्षित है।"
-                : language === "mr"
-                ? "बॅकएंड ऑथेंटिकेशन bcrypt पासवर्ड हॅशिंग आणि JWT RBAC द्वारे सुरक्षित आहे."
-                : "Backend authentication enforced with bcrypt password hashing and JWT RBAC."}
-            </p>
           </form>
         ) : (
           <form onSubmit={handleSignUp} noValidate>
             <h2 style={{ marginTop: "0.4rem", fontSize: "1.3rem" }}>{t("signUpTab")}</h2>
             <p className="soft small">
               {language === "hi"
-                ? "नए मरीज़ के रूप में पंजीकरण करें और अनुकूल केस-टेकिंग शुरू करें।"
+                ? "गाइडेड प्री-कंसल्टेशन इनटेक शुरू करने के लिए त्वरित पंजीकरण।"
                 : language === "mr"
-                ? "नवीन रुग्ण म्हणून नोंदणी करा आणि अनुकूली केस-टेकिंग सुरू करा."
-                : "Register as a new patient to begin adaptive case-taking and prescription upload."}
+                ? "मार्गदर्शित प्री-कंसल्टेशन इनटेक सुरू करण्यासाठी जलद नोंदणी."
+                : "Quick registration to start your guided pre-consultation intake."}
             </p>
 
             {/* Language Selection Buttons */}
@@ -514,24 +562,24 @@ ${t("password")}: ${newCredentials.password}`).catch(() => {});
 
             <div
               style={{
-                marginTop: "0.8rem",
-                marginBottom: "0.8rem",
-                padding: "0.75rem",
+                marginTop: "0.6rem",
+                marginBottom: "0.6rem",
+                padding: "0.55rem 0.7rem",
                 background: "#f8faf8",
-                borderRadius: "10px",
+                borderRadius: "8px",
                 border: "1px solid var(--line)",
               }}
             >
-              <label style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", cursor: "pointer", fontWeight: "normal", margin: 0 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontWeight: "normal", margin: 0 }}>
                 <input
                   type="checkbox"
                   checked={signupForm.consent}
                   onChange={(e) => setSignupForm((f) => ({ ...f, consent: e.target.checked }))}
                   disabled={loading}
-                  style={{ width: "18px", height: "18px", marginTop: "2px" }}
+                  style={{ width: "16px", height: "16px", flexShrink: 0 }}
                 />
-                <span className="small" style={{ lineHeight: 1.4 }}>
-                  <b>{language === "hi" ? "सूचित सहमति आवश्यक है: *" : language === "mr" ? "माहितीपूर्ण संमती आवश्यक: *" : "Informed Consent Required: *"}</b>{" "}
+                <span className="small">
+                  <b>{language === "hi" ? "सहमति आवश्यक: *" : language === "mr" ? "संमती आवश्यक: *" : "Consent Required: *"}</b>{" "}
                   {t("consentAgreement")}
                 </span>
               </label>

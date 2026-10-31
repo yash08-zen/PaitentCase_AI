@@ -1,0 +1,84 @@
+# ==============================================================================
+# CLINICAL TREND INTERPRETATION RULES CONFIGURATION
+# WARNING: RESEARCH PROTOTYPE. REQUIRES CLINICIAN REVIEW BEFORE REAL USE.
+#
+# Deterministic threshold criteria for laboratory test trends over time.
+# Used by backend/app/engines/trend_calculator.py to identify clinically meaningful
+# changes across longitudinal patient encounters and lab reports.
+# ==============================================================================
+
+disclaimer: "RESEARCH PROTOTYPE ONLY - REQUIRES CLINICIAN REVIEW BEFORE REAL USE"
+version: "2026.10.1"
+
+rules:
+  creatinine:
+    test_synonyms:
+      - "creatinine"
+      - "serum creatinine"
+      - "s. creatinine"
+      - "cr"
+      - "sr creatinine"
+    unit: "mg/dL"
+    criteria:
+      - id: "CREATININE_AKI_ACUTE_RISE"
+        direction: "rising"
+        min_absolute_change: 0.3
+        time_window_days: 7
+        severity: "critical"
+        label: "Acute rise in Serum Creatinine (>= 0.3 mg/dL within 7 days); meets KDIGO Stage 1 criterion for acute kidney injury."
+      - id: "CREATININE_PERCENT_RISE"
+        direction: "rising"
+        min_percent_change: 50.0
+        time_window_days: 90
+        severity: "warning"
+        label: "Serum Creatinine rise >= 50% from baseline; may indicate progressive renal impairment."
+
+  haemoglobin:
+    test_synonyms:
+      - "haemoglobin"
+      - "hemoglobin"
+      - "hb"
+      - "hgb"
+    unit: "g/dL"
+    criteria:
+      - id: "HB_ACUTE_DROP"
+        direction: "falling"
+        min_absolute_change: 2.0
+        time_window_days: 14
+        severity: "critical"
+        label: "Acute drop in Haemoglobin >= 2.0 g/dL within 14 days; suspect acute blood loss or active hemolysis."
+      - id: "HB_PROGRESSIVE_DROP"
+        direction: "falling"
+        min_percent_change: 20.0
+        time_window_days: 90
+        severity: "warning"
+        label: "Haemoglobin drop >= 20% over 90 days; progressive anemia."
+
+  platelets:
+    test_synonyms:
+      - "platelets"
+      - "platelet count"
+      - "plt"
+    unit: "x10^3/uL"
+    criteria:
+      - id: "PLATELET_SHARP_DROP"
+        direction: "falling"
+        min_percent_change: 30.0
+        time_window_days: 14
+        severity: "critical"
+        label: "Sharp platelet drop >= 30% within 14 days; investigate drug-induced thrombocytopenia or consumption coagulopathy."
+
+  potassium:
+    test_synonyms:
+      - "potassium"
+      - "serum potassium"
+      - "k+"
+    unit: "mmol/L"
+    criteria:
+      - id: "POTASSIUM_RAPID_RISE"
+        direction: "rising"
+        min_absolute_change: 1.0
+        time_window_days: 7
+        severity: "critical"
+        label: "Rapid rise in serum potassium >= 1.0 mmol/L; risk of cardiac dysrhythmia."
+

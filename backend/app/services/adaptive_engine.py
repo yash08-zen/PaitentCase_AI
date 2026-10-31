@@ -8,6 +8,7 @@ branches upon answer modification, manages bidirectional back navigation, and ca
 real-time progress and completion.
 """
 import os
+import re
 import json
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
@@ -16,6 +17,7 @@ from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 
+from app.data.complaint_modules import match_modules
 from app.models import Question, Response, Encounter, EncounterStatus
 from app.schemas import (
     QuestionOut,
@@ -48,7 +50,22 @@ class AdaptiveEngine:
 
     async def get_next_question(self, encounter_id: int) -> NextQuestionResponse:
         """Return the next unanswered applicable question for this encounter."""
+        from app.core.config import settings
         answered = await self._get_answered_map(encounter_id)
+
+        # Optional, feature-flagged AI follow-up (deterministic flow stays the default/fallback)
+        if settings.AI_FOLLOWUPS_ENABLED and answered.get("chief_complaint"):
+            ai_q = await self._ai_followup_question(encounter_id, answered)
+            if ai_q is not None:
+                return NextQuestionResponse(
+                    question=QuestionOut.model_validate(ai_q),
+                    progress=0.15,
+                    is_complete=False,
+                    adaptive_note="AI SOCRATES symptom exploration (optional)",
+                    answered_count=len(answered),
+                    total_applicable=len(answered) + 10,
+                    can_go_back=True,
+                )
         all_questions = await self._load_questions_ordered()
         applicable = [q for q in all_questions if self._is_applicable(q, answered)]
         answered_count = sum(1 for q in applicable if q.key in answered)
@@ -132,10 +149,12 @@ class AdaptiveEngine:
 
         await self.db.flush()
 
-        # Update encounter status if pending
+        # Update encounter status if pending; keep the free-text reason on the encounter
         enc = await self.db.get(Encounter, encounter_id)
         if enc and enc.status == EncounterStatus.pending:
             enc.status = EncounterStatus.in_progress
+        if enc and question_key == "chief_complaint" and answer and answer.strip():
+            enc.chief_complaint = answer.strip()
 
         # Re-evaluate all questions and prune any saved responses that are no longer applicable
         answered = await self._get_answered_map(encounter_id)
@@ -189,7 +208,7 @@ class AdaptiveEngine:
         for q in all_questions:
             if self._is_applicable(q, answered):
                 applicable.append(q)
-            elif q.skip_why:
+            elif q.skip_why and not (isinstance(q.branching_rules, dict) and q.branching_rules.get("retired")):
                 skipped.append(
                     SkippedPathItem(
                         key=q.key,
@@ -293,9 +312,63 @@ class AdaptiveEngine:
     # ------------------------------------------------------------------
 
     async def _load_questions_ordered(self) -> List[Question]:
+        # AI follow-ups are per-encounter and only served by _ai_followup_question
         return (
-            await self.db.scalars(select(Question).order_by(Question.order))
+            await self.db.scalars(
+                select(Question).where(~Question.key.startswith("ai_followup_")).order_by(Question.order)
+            )
         ).all()
+
+    async def _ai_followup_question(self, encounter_id: int, answered: Dict[str, str]) -> Optional[Question]:
+        """
+        Ask the LLM for SOCRATES follow-ups once per encounter. A proposal is used
+        only if it passes services/followup_safety.py; proposals that map to the
+        question bank are left to the deterministic flow. Any failure returns None.
+        """
+        prefix = f"ai_followup_{encounter_id}_"
+        if any(k.startswith(prefix) for k in answered):
+            return None
+        existing = await self.db.scalar(select(Question).where(Question.key.startswith(prefix)))
+        if existing is not None:
+            return existing  # proposed earlier, not yet answered
+        try:
+            from app.services.followup_safety import screen_followups
+            from app.services.llm.manager import llm_service
+            from app.services.llm.prompts import SCHEMAS, SYSTEM_PROMPTS, wrap_case_data
+
+            res, _ = await llm_service.generate(
+                task="followup_questions",
+                system_prompt=SYSTEM_PROMPTS["followup_questions"],
+                user_content=wrap_case_data({"chief_complaint": answered["chief_complaint"]}),
+                json_schema=SCHEMAS["followup_questions"],
+                encounter_id=encounter_id,
+            )
+            bank = {q.key: q.text for q in await self._load_questions_ordered()}
+            screened = screen_followups(res.get("followups") or [], bank)
+            chosen = next((p for p in screened if p["decision"] == "accept"), None)
+            if chosen is None:
+                return None
+            ai_q = Question(
+                key=f"{prefix}{chosen.get('socrates_dimension') or 'detail'}",
+                label="AI Clarification",
+                section="Symptoms",
+                text=chosen["text"],
+                placeholder="Provide additional details if applicable...",
+                help="Optional follow-up question (SOCRATES). AI-proposed and safety-filtered.",
+                answer_type="text",
+                group="symptoms",
+                order=2,
+                is_required=False,
+                because="SOCRATES Clarification (AI-proposed, safety-filtered)",
+            )
+            self.db.add(ai_q)
+            await self.db.commit()
+            await self.db.refresh(ai_q)
+            return ai_q
+        except Exception:
+            await self.db.rollback()
+            return None
+
 
     async def _get_answered_map(self, encounter_id: int) -> Dict[str, str]:
         responses = (
@@ -311,10 +384,18 @@ class AdaptiveEngine:
         if not key:
             return True
 
-        val = answered.get(key, "").strip()
-        if not val:
+        raw = answered.get(key, "").strip()
+        if not raw:
             return False
 
+        # Symptom modules matched from the free-text reason for visit
+        if "module" in rule_dict:
+            return rule_dict["module"] in match_modules(raw)
+        if "not_module" in rule_dict:
+            return rule_dict["not_module"] not in match_modules(raw)
+
+        # Localized choices are stored as "हां (Yes)": rules compare the English value
+        val = ", ".join(self._english_choice(part) for part in raw.split(","))
         val_lower = val.lower()
 
         # 1. equals
@@ -343,6 +424,14 @@ class AdaptiveEngine:
 
         return True
 
+    @staticmethod
+    def _english_choice(value: str) -> str:
+        """'हां (Yes)' -> 'Yes'; plain English values are returned unchanged."""
+        m = re.search(r"\(([^()]*)\)\s*$", value.strip())
+        if m and re.search(r"[^\x00-\x7f]", value):
+            return m.group(1).strip()
+        return value.strip()
+
     def _is_applicable(self, question: Question, answered: Dict[str, str]) -> bool:
         """
         Deterministic branch evaluation.
@@ -352,6 +441,8 @@ class AdaptiveEngine:
           3. legacy conditions are all satisfied (if specified and no show_if).
         """
         rules = question.branching_rules
+        if rules and isinstance(rules, dict) and rules.get("retired"):
+            return False
         if rules and isinstance(rules, dict):
             show_if = rules.get("show_if")
             if show_if and isinstance(show_if, dict):
