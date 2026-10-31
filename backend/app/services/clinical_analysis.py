@@ -243,6 +243,9 @@ class ClinicalAnalysisService:
         answers: Dict[str, str] = {r.question_key: (r.answer or "").strip() for r in responses if r.answer}
         if encounter.chief_complaint and "chief_complaint" not in answers:
             answers["chief_complaint"] = encounter.chief_complaint
+        elif encounter.chief_complaint and encounter.chief_complaint.strip().lower() != answers["chief_complaint"].strip().lower():
+            # Reason recorded at registration differs from the interview answer: keep both as evidence
+            answers["registration_complaint"] = encounter.chief_complaint.strip()
 
         index = EvidenceIndex()
         for key, ans in answers.items():

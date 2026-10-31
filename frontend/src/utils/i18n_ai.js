@@ -8,6 +8,8 @@
 
 export const AI_TRANSLATIONS = {
   en: {
+    trigger_backfill: "first analysis of an existing case",
+    conclusionMissingRerun: "The last analysis produced no conclusion. Open the case and re-run the analysis.",
     autoAnalysisNote: "The analysis runs automatically when the patient answers questions or a document is processed.",
     rerunAnalysis: "Re-run analysis",
     analyzedConclusion: "Analyzed Conclusion",
@@ -140,6 +142,8 @@ export const AI_TRANSLATIONS = {
   },
 
   hi: {
+    trigger_backfill: "मौजूदा केस का पहला विश्लेषण",
+    conclusionMissingRerun: "पिछले विश्लेषण से कोई निष्कर्ष नहीं बना। केस खोलकर विश्लेषण दोबारा चलाएँ।",
     autoAnalysisNote: "मरीज़ के प्रश्नों के उत्तर देने या दस्तावेज़ प्रोसेस होने पर विश्लेषण अपने-आप चलता है।",
     rerunAnalysis: "विश्लेषण दोबारा चलाएँ",
     analyzedConclusion: "विश्लेषित निष्कर्ष",
@@ -272,6 +276,8 @@ export const AI_TRANSLATIONS = {
   },
 
   mr: {
+    trigger_backfill: "विद्यमान केसचे पहिले विश्लेषण",
+    conclusionMissingRerun: "मागील विश्लेषणातून निष्कर्ष तयार झाला नाही. केस उघडून विश्लेषण पुन्हा चालवा.",
     autoAnalysisNote: "रुग्णाने प्रश्नांची उत्तरे दिल्यावर किंवा दस्तऐवज प्रक्रिया झाल्यावर विश्लेषण आपोआप चालते.",
     rerunAnalysis: "विश्लेषण पुन्हा चालवा",
     analyzedConclusion: "विश्लेषित निष्कर्ष",

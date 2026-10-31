@@ -166,3 +166,48 @@ async def test_self_registration_reason_starts_tailored_interview(client):
     assert "urinary_symptoms" in [i["key"] for i in prog["active_path"]]
     # the patient cannot read the AI analysis
     assert (await client.get(f"/api/analysis/{enc}", headers=h)).status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_startup_backfill_analyses_cases_never_analysed(client, auth_headers, encounter):
+    # answer while automatic analysis is off (as for cases created before the feature)
+    await answer(client, auth_headers, encounter, "chief_complaint", "dry cough for two weeks")
+    assert await job_count(encounter) == 0
+    with patch.object(settings, "AUTO_ANALYSIS_ENABLED", True):
+        queued = await auto_analysis.backfill_unanalyzed()
+        await auto_analysis.wait_idle()
+        assert queued >= 1
+        assert await job_count(encounter) == 1
+        assert await auto_analysis.backfill_unanalyzed() == 0  # never twice
+
+
+@pytest.mark.asyncio
+async def test_retired_questions_are_never_listed(client, auth_headers, encounter):
+    from app.models import Question
+    async with AsyncSessionLocal() as db:
+        db.add(Question(key="old_retired_q", text="Old?", answer_type="text", order=99,
+                        branching_rules={"retired": True}, skip_why="old rule"))
+        await db.commit()
+    await answer(client, auth_headers, encounter, "chief_complaint", "rash")
+    prog = (await client.get(f"/api/interviews/{encounter}/progress", headers=auth_headers)).json()
+    keys = [i["key"] for i in prog["active_path"]] + [s["key"] for s in prog["skipped_questions"]]
+    assert "old_retired_q" not in keys
+
+
+@pytest.mark.asyncio
+async def test_registration_reason_is_also_analysed(client, auth_headers):
+    p = await client.post("/api/patients", json={"full_name": "Two Reasons", "age": 60, "gender": "Male"}, headers=auth_headers)
+    e = await client.post("/api/encounters", json={"patient_id": p.json()["id"], "consent_given": True,
+                                                   "chief_complaint": "chest tightness and shortness of breath"},
+                          headers=auth_headers)
+    enc = e.json()["id"]
+    from app.database import AsyncSessionLocal as S
+    from app.models import Question, Response
+    async with S() as db:  # interview answer stored without touching the encounter text (legacy data)
+        q = await db.scalar(select(Question).where(Question.key == "chief_complaint"))
+        db.add(Response(encounter_id=enc, question_id=q.id, question_key="chief_complaint", answer="Chest discomfort"))
+        await db.commit()
+    doctor = await token(client, "doctor", "Doctor@1234")
+    await client.post(f"/api/analysis/{enc}/run", headers=doctor)
+    data = (await client.get(f"/api/analysis/{enc}", headers=doctor)).json()
+    assert data["overall_urgency"] == "EMERGENCY"

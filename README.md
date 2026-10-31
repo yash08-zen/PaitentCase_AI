@@ -15,13 +15,14 @@
 **PatientCase AI** digitizes and structures pre-consultation patient case collection to optimize clinician-patient interactions. The platform replaces fragmented, paper-based waiting room intake with a secure, rule-based adaptive workflow:
 
 1. **Patient Registration & Informed Consent:** Unique integer ID (`P-<id>`), duplicate submission prevention, timestamped consent tracking, and new patient self-registration vs. existing patient login.
-2. **Deterministic Adaptive Interview:** 20-question dynamic question bank with branching rules (`show_if`, `skip_if`), back navigation, downstream answer pruning, and full trilingual presentation (English, Hindi, Marathi).
+2. **Complaint-Driven Adaptive Interview:** the patient first describes the reason for the visit in their own words (English, Hindi or Marathi). Generic questions (onset, duration, severity, course, triggers) apply to every complaint, and symptom modules (pain, chest, breathing, fever, stomach, head/nerves, urinary, skin, injury, mood/sleep, women's health) are added from keywords in the patient's text (`backend/app/data/complaint_modules.py`). Deterministic branching, back navigation, answer pruning and trilingual text are kept.
 3. **Structured Case Summary & Missing Information:** Generates provenance-tagged records (`patient_reported`, `document_extracted_unverified`, `doctor_verified`), detects missing items under the clinical principle **Missing $\neq$ Negative**, and calculates deterministic 4-factor completeness.
 4. **Local OCR & Medication Extraction:** On-device neural OCR (RapidOCR ONNX) running on CPU; regex entity extraction; deterministic discrepancy rules (`RULE-MED-DENIAL`, `RULE-ALLERGY-CONFLICT`, etc.).
 5. **Doctor Dashboard, Review & Locking:** Filterable case queue with rule-based priority alerts, discrepancy reconciliation, doctor review notes persistence, and permanent encounter locking (`HTTP 400`).
 6. **Local-First Operation:** In `local` (Ollama) and `mock` LLM modes there are zero external calls. In `hosted` mode, de-identified clinical text (and page images for the handwriting path) is sent to the configured provider; every such call writes an audit event.
 7. **Multilingual Voice Assistant & Trilingual UI Localization:** English (`en`), Hindi (`hi`), and Marathi (`mr`) across all views, including the AI Insights tab.
 8. **AI Clinical Insights layer (doctor only):** *The LLM proposes. Code verifies. The doctor decides.*
+   - **Automatic analysis:** runs on its own when the patient answers (debounced), completes the interview, or a document is processed; no button press needed. Each run produces an **Analyzed Conclusion** (possible conclusions from the patient's inputs, with cited findings and next steps) shown on the doctor's dashboard and at the top of the AI tab, plus a rule-based overview that works without the LLM.
    - **LLM service** with `hosted` (Anthropic SDK, structured outputs), `local` (Ollama, ~3B model) and `mock` providers; de-identification before hosted calls; per-call logging and token usage; graceful `llm_unavailable` state; background jobs (`LLM_JOBS`).
    - **Document intelligence:** classification, type-specific extraction, grounding of every value against the OCR text, regex cross-check, quality checks, wrong-patient checks, chronological timeline, and a hosted vision path for low-confidence handwriting (results flagged *read from handwriting, verify*).
    - **Deterministic engines:** lab flagging against printed ranges (with unit normalization), trend calculator with configurable rules (`backend/config/trend_rules.yaml`), qSOFA / CURB-65 / NEWS2 / CHA₂DS₂-VASc, red-flag urgency rules, drug-drug and drug-allergy table, medication reconciliation, and rules `RULE-INTERACTION`, `RULE-LAB-ABNORMAL`, `RULE-DIAGNOSIS-DENIAL`, `RULE-WRONG-PATIENT`.
@@ -369,7 +370,7 @@ All metrics represent **empirically measured values** verified through automated
 | **Air-Gapped Offline Operation** | FR-13 | **0 External Calls in `local`/`mock` mode** | Automated socket trap confirms zero non-local socket connections during intake and review. In `hosted` mode, de-identified clinical text is sent to the configured provider (each call is audited). |
 | **Storage Integrity Verification** | FR-13 | **100% Integrity** | `PRAGMA integrity_check` returns status `ok` on local disk storage. |
 | **Authorization Boundary Enforcement** | FR-02, FR-14 | **100% Enforced** | 10 role boundary assertions return `HTTP 403 Forbidden` for unauthorized actions. |
-| **Total Test Suite Pass Rate** | Global DoD | **263 / 263 (100% Green)** | **176 backend pytest + 87 frontend vitest tests passing** (includes the original 98 + 75). |
+| **Total Test Suite Pass Rate** | Global DoD | **284 / 284 (100% Green)** | **189 backend pytest + 95 frontend vitest tests passing** (includes the original 98 + 75). |
 
 ---
 
@@ -441,14 +442,14 @@ npm run dev
 
 ## 5. Verification & Test Execution
 
-Execute the complete 263-test suite across backend and frontend (tests use the offline `mock` LLM provider; no network or API key needed):
+Execute the complete 284-test suite across backend and frontend (tests use the offline `mock` LLM provider; no network or API key needed):
 
 ```powershell
-# 1. Backend Pytest Suite (176 passed)
+# 1. Backend Pytest Suite (189 passed)
 cd backend
 .\.venv312\Scripts\python.exe -m pytest -q
 
-# 2. Frontend Vitest Suite (87 passed across 15 files)
+# 2. Frontend Vitest Suite (95 passed across 16 files)
 cd ..\frontend
 npm test
 

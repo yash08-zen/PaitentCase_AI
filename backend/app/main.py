@@ -41,6 +41,10 @@ async def lifespan(app: FastAPI):
     await seed_questions()
     await ensure_default_admin()
     from app.services.llm.manager import HOSTED_CONSENT_LINE, llm_service
+    from app.services.auto_analysis import backfill_unanalyzed
+    queued = await backfill_unanalyzed()
+    if queued:
+        print(f"[startup] Automatic analysis queued for {queued} open case(s) not analysed yet.")
     if llm_service.mode == "hosted":
         print(f"[startup] WARNING: LLM_PROVIDER=hosted. {HOSTED_CONSENT_LINE}")
         if not settings.ANTHROPIC_API_KEY:

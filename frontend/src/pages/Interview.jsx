@@ -92,6 +92,23 @@ function AnswerInput({ q, value, setValue, onEnter }) {
     );
   }
 
+  // The reason for visit is free text in the patient's own words: give it room
+  if (q.key === "chief_complaint") {
+    return (
+      <textarea
+        className="bigtext"
+        autoFocus
+        rows={3}
+        value={value || ""}
+        placeholder={q.placeholder || "Type your answer..."}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && (e.ctrlKey || e.metaKey) && onEnter()}
+        aria-label={q.text}
+        style={{ resize: "vertical", minHeight: 90 }}
+      />
+    );
+  }
+
   // Text, number, date
   return (
     <input

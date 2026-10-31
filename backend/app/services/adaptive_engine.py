@@ -208,7 +208,7 @@ class AdaptiveEngine:
         for q in all_questions:
             if self._is_applicable(q, answered):
                 applicable.append(q)
-            elif q.skip_why:
+            elif q.skip_why and not (isinstance(q.branching_rules, dict) and q.branching_rules.get("retired")):
                 skipped.append(
                     SkippedPathItem(
                         key=q.key,

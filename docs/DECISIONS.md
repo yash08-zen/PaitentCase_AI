@@ -23,7 +23,8 @@
 ### D-003: No Alembic migrations found — using init_db() approach
 **Decision:** The backend uses SQLAlchemy Base.metadata.create_all at startup (init_db()) rather than Alembic migrations. This is acceptable for a prototype/SQLite setup. Alembic will be introduced if/when schema changes require migration (M1 onwards if schema changes happen).
 
-**Reason:** No lembic.ini or migrations/ directory was found in PatientCase_AI/backend. The equirements.txt lists lembic==1.13.1 (installed but not configured). For the current SQLite prototype, init_db() is sufficient. Adding Alembic is tracked as a follow-up.
+**Reason:** No lembic.ini or migrations/ directory was found in PatientCase_AI/backend. The 
+equirements.txt lists lembic==1.13.1 (installed but not configured). For the current SQLite prototype, init_db() is sufficient. Adding Alembic is tracked as a follow-up.
 
 ---
 
@@ -555,3 +556,20 @@ Principle for every decision below: *The LLM proposes. Code verifies. The doctor
 
 ### D-066: Alembic chain repaired
 **Decision:** the AI migration branched from an old revision and created a second head; it now follows `2fa2d5d870dc`. A new revision `8c9d0e1f2a3b` adds job usage/notes, `document_entities.review_status` and the FTS5 table.
+
+---
+
+## Milestone 18 Decisions — Automatic analysis and complaint-driven interview (2026-10-31)
+
+### D-067: Analysis runs automatically
+**Decision:** the analysis is triggered by patient activity instead of a doctor's button: debounced on each saved answer, immediate on interview completion and on processed documents. Per encounter at most one run is scheduled or running (a request during a run schedules exactly one more), and all runs (automatic and manual) are serialized globally.
+**Why:** the doctor should see a ready analysis when opening the case. Debouncing bounds hosted-API cost; serialization avoids SQLite write contention and protects small local models. Finalized cases and cases without consent are never analysed. Each automatic run writes an `AI_ANALYSIS_AUTO_STARTED` audit event with actor `system`.
+
+### D-068: Analyzed Conclusion is an AI insight, checked like the others
+**Decision:** a new `analyzed_conclusion` LLM task writes 2–4 sentences plus cited key findings, next steps and information gaps. Code rejects definitive or instruction-like wording and untraceable numbers, keeps only resolvable findings, and attaches the urgency and the considerations that passed validation (the model cannot add new ones to that list). It is stored as `ai_generated_unverified` with Accept / Edit / Reject and shown to doctors only (dashboard and AI tab). A rule-based overview (reason, urgency, red flags, abnormal labs, conflicts) is always computed so the dashboard has content when the LLM is down.
+
+### D-069: Free-text reason for visit drives the questionnaire
+**Decision:** replaced the fixed disease-choice first question and its disease-specific branches with a free-text reason, generic characterisation questions for every complaint, and keyword-selected symptom modules. Matching is deterministic and auditable (keyword lists in `complaint_modules.py`, covering English, transliterated Hindi/Marathi and Devanagari) rather than LLM-generated, so the interview works offline and every patient-facing question is reviewed and translated in advance. AI follow-ups remain optional (`AI_FOLLOWUPS_ENABLED`). Localized choice answers ("हां (Yes)") are mapped to their English value for branching. Removed questions are retired, not deleted, so existing answers survive.
+
+### D-070: New rule-based red flags from module answers
+**Decision:** anaphylaxis-type swelling (EMERGENCY), GI bleeding, coughing blood, breathlessness at rest and thoughts of self-harm (URGENT) are detected by code from the new answers.

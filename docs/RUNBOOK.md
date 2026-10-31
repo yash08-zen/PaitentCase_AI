@@ -76,16 +76,16 @@ Application URL: http://localhost:5173
 cd "d:\Projects\New PatientCase AI\backend"
 .\.venv312\Scripts\python.exe -m pytest -v
 ```
-Expected: **176 passed** (the original 98 plus 78 AI-layer tests: engines, validator, scrubber, provider interface, API/RBAC, decision/audit flow, case lock, LLM-down degradation, vision path, follow-up safety filter, red-team and eval harness). Tests force `LLM_PROVIDER=mock`; no network or API key is needed.
+Expected: **189 passed** (the original 98 plus 91 AI-layer tests, including automatic analysis and the complaint-driven questionnaire: engines, validator, scrubber, provider interface, API/RBAC, decision/audit flow, case lock, LLM-down degradation, vision path, follow-up safety filter, red-team and eval harness). Tests force `LLM_PROVIDER=mock`; no network or API key is needed.
 
 ### Frontend Tests (vitest)
 ```powershell
 cd "d:\Projects\New PatientCase AI\frontend"
 npm run test
 ```
-Expected: **87 passed across 15 test files** (adds `ai_insights.smoke.test.jsx`: AI tab rendering, badges, Accept/Edit/Reject on every AI item, `not_calculable`, unavailable state, en/hi/mr key parity) (client.test.js, ui.smoke.test.jsx, auth.smoke.test.jsx, registration.smoke.test.jsx, interview.smoke.test.jsx, summary.smoke.test.jsx, documents.smoke.test.jsx, conflicts.smoke.test.jsx, dashboard_review.smoke.test.jsx, hardening_security.smoke.test.jsx, e2e_p0_workflow.smoke.test.jsx, offline_operation.smoke.test.jsx, multilingual_voice.smoke.test.jsx, advanced_benchmarks.smoke.test.jsx).
+Expected: **95 passed across 16 test files** (adds `ai_insights.smoke.test.jsx` and `auto_conclusion.smoke.test.jsx`: AI tab rendering, badges, Accept/Edit/Reject on every AI item, `not_calculable`, unavailable state, en/hi/mr key parity) (client.test.js, ui.smoke.test.jsx, auth.smoke.test.jsx, registration.smoke.test.jsx, interview.smoke.test.jsx, summary.smoke.test.jsx, documents.smoke.test.jsx, conflicts.smoke.test.jsx, dashboard_review.smoke.test.jsx, hardening_security.smoke.test.jsx, e2e_p0_workflow.smoke.test.jsx, offline_operation.smoke.test.jsx, multilingual_voice.smoke.test.jsx, advanced_benchmarks.smoke.test.jsx).
 
-**Combined Total: 263 / 263 tests passing.**
+**Combined Total: 284 / 284 tests passing.**
 
 ---
 
@@ -231,6 +231,8 @@ PatientCase AI is engineered for local-first clinic workstation execution with z
 | `OLLAMA_BASE_URL` | `http://127.0.0.1:11434/v1` | Local OpenAI-compatible endpoint. |
 | `OLLAMA_MODEL` | `llama3.2:3b` | Any ~3B instruct model that fits 4 GB VRAM. |
 | `AI_FOLLOWUPS_ENABLED` | `false` | AI-proposed, safety-filtered SOCRATES follow-ups in the interview. |
+| `AUTO_ANALYSIS_ENABLED` | `true` | Run the analysis automatically on patient answers, interview completion and processed documents. |
+| `AUTO_ANALYSIS_DEBOUNCE_SECONDS` | `8` | Quiet period after the last answer before an automatic run (completion and documents run immediately). In hosted mode every run costs API calls; raise this to reduce cost. |
 | `LLM_TIMEOUT_SECONDS` / `LLM_MAX_RETRIES` / `LLM_MAX_TOKENS` | `30` / `3` / `4096` | Per-call timeout, retries with exponential backoff, output cap (per-task caps in `prompts.py`). |
 
 `backend/.env` is git-ignored (`.gitignore`: `.env`, `backend/.env`). Copy `backend/.env.example` and fill in values; never commit a key.
@@ -254,7 +256,16 @@ If the provider is down or unconfigured, the job ends with status `unavailable`:
 
 ### 11.3 Using the AI Insights tab
 
-Log in as `doctor`, open a case → **AI Clinical Insights** tab → choose the summary language → **Run AI Analysis**. The tab polls the job. Every AI item has Accept / Edit / Reject; decisions are audited and become `doctor_verified`. Finalizing the case locks the tab.
+The analysis runs automatically. Log in as `doctor`: the **Dashboard** lists **AI Analyzed Conclusions** for every open case (most urgent first, refreshed while analyses run). **Open AI insights** jumps to the case's **AI Clinical Insights** tab, where the Analyzed Conclusion is at the top. **Re-run analysis** (optionally with a Hindi/Marathi summary in hosted mode) is still available. The tab polls the job. Every AI item has Accept / Edit / Reject; decisions are audited and become `doctor_verified`. Finalizing the case locks the tab.
+
+### 11.3a Complaint-driven questionnaire
+
+The first interview question is free text ("What is the main reason for your visit today?"), also entered on the Patient Portal card **Why are you visiting today?** or at self-registration. Symptom modules are chosen by keyword (English, transliterated Hindi/Marathi, Devanagari) in `backend/app/data/complaint_modules.py`; module questions are in `backend/app/data/question_bank.json` (`"show_if": {"question_key": "chief_complaint", "module": "<name>"}`) and their Hindi/Marathi text in `backend/app/data/translations_complaint.py`. After changing translations, regenerate the frontend fallback:
+```powershell
+cd backend
+.\.venv312\Scripts\python.exe scripts\export_question_translations.py
+```
+Questions removed from the bank are retired at startup (kept for existing answers, never asked again).
 
 ### 11.4 Guideline library
 

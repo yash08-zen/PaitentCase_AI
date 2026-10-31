@@ -149,6 +149,31 @@ async def _run_once(encounter_id: int, reason: str) -> bool:
     return False
 
 
+async def backfill_unanalyzed(limit: int = 50) -> int:
+    """
+    Schedule one automatic analysis for open encounters that have patient input
+    but have never been analysed (e.g. cases created before this feature).
+    Runs are serialized, so this does not flood the LLM.
+    """
+    if not settings.AUTO_ANALYSIS_ENABLED:
+        return 0
+    from app.models import Document, Response
+    async with AsyncSessionLocal() as db:
+        analysed = select(LLMJob.encounter_id)
+        has_input = select(Response.encounter_id).union(
+            select(Document.encounter_id).where(Document.encounter_id.isnot(None)))
+        rows = (await db.scalars(
+            select(Encounter.id).where(
+                Encounter.status != EncounterStatus.reviewed,
+                Encounter.consent_given.is_(True),
+                Encounter.id.in_(has_input),
+                ~Encounter.id.in_(analysed),
+            ).order_by(Encounter.id.desc()).limit(limit))).all()
+    for eid in rows:
+        request_analysis(eid, "backfill", delay=0)
+    return len(rows)
+
+
 def pending_encounters() -> Dict[int, str]:
     """Encounters with a scheduled or running automatic analysis (for status display)."""
     return {eid: _reason.get(eid, "auto") for eid, t in _tasks.items() if not t.done()}

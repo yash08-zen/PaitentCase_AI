@@ -52,7 +52,9 @@
 
 ---
 
-### Screen 5 — Adaptive Rule-Based Interview (`Interview.jsx`)
+### Screen 5 — Adaptive Interview (`Interview.jsx`, reason card in `PatientPortal.jsx`)
+
+The first question (`chief_complaint`) is free text; the following questions depend on symptom modules matched from it (see RUNBOOK §11.3a).
 
 | Action | Frontend Handler | Backend Endpoint | Method | Status | Notes |
 |---|---|---|---|---|---|
@@ -86,6 +88,21 @@
 | Reconcile discrepancy | `apiClient.resolveConflict(cid, notes)` | `/api/conflicts/{id}/resolve` | `PUT` | **Verified (M8)** | Doctor resolution note, updates flag, emits audit trail. |
 | Persist doctor notes | `apiClient.saveDoctorNotes(id, notes)` | `/api/encounters/{id}/notes` | `PUT` | **Verified (M8)** | Persists clinical review observations to encounter record. |
 | Finalize & lock encounter | `apiClient.finalizeEncounter(id, notes)`| `/api/encounters/{id}/finalize` | `POST` | **Verified (M8)** | Permanently locks encounter against patient tampering (`HTTP 400`). Also locks AI re-runs and AI decisions. |
+
+### Automatic analysis and the doctor dashboard
+
+| Trigger | Where | Behaviour |
+|---|---|---|
+| Interview answer saved | `POST /api/interviews/{id}/responses` | Debounced automatic analysis (`AUTO_ANALYSIS_DEBOUNCE_SECONDS`) |
+| Interview completed | `POST /api/interviews/{id}/complete` | Immediate automatic analysis |
+| Document OCR finished | background worker after `POST /api/documents/upload/{patient_id}` | Immediate automatic analysis |
+| Self-registration with a reason | `POST /api/patients/self-register` | Reason saved as the first answer; debounced analysis |
+
+| Endpoint | Method | Roles | Description |
+|---|---|---|---|
+| `/api/analysis/overview?limit=30` | `GET` | doctor, admin (403 otherwise) | Per open case: `analysis_state` (`analyzing`/`ready`/`ai_unavailable`/`failed`/`not_analyzed`), `last_trigger`, `urgency`, `reason_for_visit`, latest `conclusion` (Analyzed Conclusion insight), rule-based `overview`. Sorted by urgency. Used by `components/AIConclusionsPanel.jsx` on `Dashboard.jsx`. |
+
+`GET /api/analysis/{id}` also returns `analyzed_conclusion`, `overview`, `analysis_state` and `last_trigger`.
 
 ### Screen 8 — AI Insights tab (`DoctorReview.jsx` → `components/AIClinicalInsights.jsx`, doctor/admin only)
 

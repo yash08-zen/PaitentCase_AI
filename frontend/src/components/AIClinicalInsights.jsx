@@ -449,7 +449,9 @@ export default function AIClinicalInsights({ encounterId, isFinalized, onAcceptS
             <ConclusionBody content={data.analyzed_conclusion.content} t={t} />
           </AIItem>
         ) : (
-          <p className="small soft">{t("conclusionPending")}</p>
+          <p className="small soft">
+            {data?.analysis_state === "ready" ? t("conclusionMissingRerun") : t("conclusionPending")}
+          </p>
         )}
       </Section>
 

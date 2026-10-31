@@ -4,6 +4,7 @@ import apiClient from "../api/client";
 import { Empty, Icon, Proto, Ring, Source, Tag, Spinner } from "../components/ui";
 import { fmtT } from "../utils/i18n";
 import AIClinicalInsights from "../components/AIClinicalInsights";
+import { REVIEW_TAB_KEY } from "../components/AIConclusionsPanel";
 
 function ConflictCard({ f, onResolve }) {
   const { t } = useStore();
@@ -111,7 +112,22 @@ export default function DoctorReview({ go }) {
   const [finalizing, setFinalizing] = useState(false);
   const [isFinalized, setIsFinalized] = useState(false);
   const [finalizedInfo, setFinalizedInfo] = useState(null);
-  const [activeTab, setActiveTab] = useState("clinical"); // 'clinical' | 'ai_insights'
+  // 'clinical' | 'ai_insights'; the dashboard's AI panel asks for the AI tab once
+  const [activeTab, setActiveTab] = useState(() => {
+    try {
+      return sessionStorage.getItem(REVIEW_TAB_KEY) === "ai_insights" ? "ai_insights" : "clinical";
+    } catch {
+      return "clinical";
+    }
+  });
+  // Consume the one-time request after mount (initializers may run twice in StrictMode)
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem(REVIEW_TAB_KEY);
+    } catch {
+      // nothing to clear
+    }
+  }, []);
 
   const p = patients.find((x) => x.id === activeId);
   const c = cases[activeId];

@@ -7,8 +7,8 @@
 **Core design principle:** *The LLM proposes. Code verifies. The doctor decides.*
 
 **Test suites (run on 31 Oct 2026):**
-- Backend: **176 / 176 pytest passing** (98 original + 78 AI-layer)
-- Frontend: **87 / 87 vitest passing** (75 original + 12 AI tab), production build OK
+- Backend: **189 / 189 pytest passing** (98 original + 91 AI-layer, auto-analysis and questionnaire)
+- Frontend: **95 / 95 vitest passing** (75 original + 20 AI tab, dashboard panel, reason card), production build OK
 - Fresh `alembic upgrade head` / `downgrade -1` / re-upgrade verified on an empty database
 
 ---
@@ -31,7 +31,7 @@ The previous version of this file reported the AI layer as complete. An audit ag
 
 | Requirement | Status |
 |---|---|
-| Existing 173 tests plus new tests all pass | Done: 263 / 263 |
+| Existing 173 tests plus new tests all pass | Done: 284 / 284 |
 | Doctor runs AI analysis on a case with a lab report and a prescription and sees entities with source highlights, abnormal labs, trends with rule-based interpretation, scores or `not_calculable`, urgency alerts, considerations with evidence, cited treatment reference, AI summary, and Accept / Edit / Reject that write audit events | Done; covered end-to-end by `test_full_case_with_lab_report_and_prescription` and the decision/audit tests. UI not yet checked by hand in a browser against a live backend. |
 | Patients and staff never see AI insights (403 + test) | Done, tested on every AI endpoint |
 | `LLM_PROVIDER=local` or LLM unreachable → app works and tab shows unavailable / reduced state | Done (`test_llm_down_degrades_gracefully`, frontend unavailable-state test). Not tested against a real Ollama install. |
@@ -56,6 +56,12 @@ The previous version of this file reported the AI layer as complete. An audit ag
 The mock provider is a regex/dictionary stand-in, not an LLM. These numbers do not describe real model accuracy.
 
 ---
+
+## 3b. Added on 31 Oct 2026 (second request)
+
+- **Automatic analysis:** runs on patient answers (debounced), interview completion and processed documents; no button needed. Produces a validated **Analyzed Conclusion** and a rule-based overview.
+- **Doctor dashboard:** "AI Analyzed Conclusions" panel (doctor/admin only), sorted by urgency, live while analyses run, with a link into each case's AI tab.
+- **Complaint-driven questionnaire:** free-text reason for visit (Patient Portal card, interview, self-registration) -> generic questions + symptom modules chosen from the patient's words in English/Hindi/Marathi. Fixed disease-choice list removed.
 
 ## 4. Remaining work
 
