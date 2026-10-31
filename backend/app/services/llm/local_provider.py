@@ -14,6 +14,7 @@ import httpx
 
 from app.core.config import settings
 from app.services.llm.interface import BaseLLMProvider, LLMUnavailableError, LLMProviderError, LLMValidationError
+from app.services.llm.prompts import MAX_TOKENS
 
 logger = logging.getLogger("app.services.llm.local")
 
@@ -66,7 +67,7 @@ class LocalLLMProvider(BaseLLMProvider):
     ) -> Dict[str, Any]:
         # Vision limitation check
         if images:
-            raise LLMProviderError(
+            raise LLMUnavailableError(
                 "Local 3B model does not support image/vision processing. "
                 "Handwritten documents must be routed to manual doctor review."
             )
@@ -86,6 +87,7 @@ class LocalLLMProvider(BaseLLMProvider):
                 {"role": "user", "content": user_content}
             ],
             "temperature": 0.0,
+            "max_tokens": min(MAX_TOKENS.get(task, 1024), 1024),
             "response_format": {"type": "json_object"},
             "options": {
                 "num_ctx": 4096,
@@ -116,12 +118,20 @@ class LocalLLMProvider(BaseLLMProvider):
 
                     try:
                         parsed = json.loads(raw_content)
-                        return parsed
                     except json.JSONDecodeError as je:
                         raise LLMValidationError(f"Local LLM returned malformed JSON: {je}")
+                    if not isinstance(parsed, dict):
+                        raise LLMValidationError("Local LLM returned non-object JSON")
+                    usage = data.get("usage") or {}
+                    parsed["_usage"] = {
+                        "model": self.model_name,
+                        "input_tokens": usage.get("prompt_tokens", 0),
+                        "output_tokens": usage.get("completion_tokens", 0),
+                    }
+                    return parsed
 
                 else:
-                    raise LLMProviderError(f"Local LLM returned HTTP {res.status_code}: {res.text}")
+                    raise LLMProviderError(f"Local LLM returned HTTP {res.status_code}")
 
             except (httpx.TimeoutException, httpx.NetworkError) as err:
                 raise LLMUnavailableError(

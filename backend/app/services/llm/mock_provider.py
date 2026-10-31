@@ -1,27 +1,168 @@
 """
 services/llm/mock_provider.py
 -----------------------------
-Offline deterministic mock provider for testing and air-gapped evaluation.
-Returns schema-valid clinical fixtures tailored to the requested task and input content.
+Offline, deterministic mock provider used by all automated tests and by the
+evaluation harness when no hosted key is configured.
+
+It is NOT a model. It reads the <case_data> payload and produces schema-valid
+output with simple rules:
+  - extraction is a dictionary/regex stand-in (lab synonyms, the existing
+    regex medication extractor, a short diagnosis keyword list);
+  - considerations, summaries and questions only cite entries that exist in
+    the evidence catalogue it was given.
+Its results say nothing about how a real LLM performs; the eval report labels
+them as mock-provider measurements.
+
+Tests can inject adversarial output per task through `overrides`
+(task -> dict, or task -> callable(payload) -> dict) and simulate an outage
+with `force_unavailable`.
 """
-from typing import Dict, Any, Optional, List
+import json
 import re
-from app.services.llm.interface import BaseLLMProvider
+from typing import Any, Callable, Dict, List, Optional, Union
+
+from app.engines.lab_flagging import TEST_SYNONYMS
+from app.services.llm.interface import BaseLLMProvider, LLMUnavailableError
+
+_CASE_RE = re.compile(r"<case_data>\s*(.*?)\s*</case_data>", re.DOTALL)
+_NUM = r"(\d+(?:\.\d+)?)"
+_DATE_RE = re.compile(r"\b(\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{4}|\d{1,2}-\d{1,2}-\d{4})\b")
+_NEGATION_RE = re.compile(r"\b(no|not|denies|denied|without|negative for|nil)\b[^.\n]{0,25}$", re.IGNORECASE)
+
+DIAGNOSIS_TERMS = [
+    "type 2 diabetes mellitus", "type 2 diabetes", "diabetes mellitus", "essential hypertension",
+    "hypertension", "hypothyroidism", "bronchial asthma", "asthma", "copd",
+    "chronic kidney disease", "coronary artery disease", "atrial fibrillation", "heart failure",
+    "community-acquired pneumonia", "pneumonia", "pulmonary tuberculosis", "tuberculosis",
+    "iron deficiency anaemia", "anaemia", "anemia", "dyslipidemia",
+]
+
+UNIT_RE = r"(mg/dl|g/dl|mmol/l|meq/l|umol/l|µmol/l|g/l|u/l|iu/l|%|x10\^3/ul|x10\^9/l|/cumm|ml/min/1\.73m2|ml/min)"
+
+
+def _parse_payload(user_content: str) -> Dict[str, Any]:
+    m = _CASE_RE.search(user_content or "")
+    if not m:
+        return {}
+    try:
+        return json.loads(m.group(1).replace("<\\/case_data>", "</case_data>"))
+    except json.JSONDecodeError:
+        return {}
+
+
+def mock_extract_labs(text: str) -> List[Dict[str, str]]:
+    """Dictionary-driven lab row reader: '<synonym> [:] value [unit] [(ref a-b | >a | <b)]'."""
+    rows: List[Dict[str, str]] = []
+    taken: List[range] = []
+    date_m = _DATE_RE.search(text)
+    doc_date = date_m.group(1) if date_m else ""
+    for syn in sorted(TEST_SYNONYMS, key=len, reverse=True):
+        if len(syn) < 3 and syn not in ("hb", "k+"):
+            continue
+        pat = re.compile(
+            rf"(?<![A-Za-z]){re.escape(syn)}(?![A-Za-z])\s*[:\-=]?\s*{_NUM}\s*{UNIT_RE}?"
+            rf"(?:\s*\(\s*(?:ref(?:erence)?(?:\s*range)?)?[\s:]*(?:{_NUM}\s*[-–]\s*{_NUM}|([<>])\s*{_NUM})\s*\))?",
+            re.IGNORECASE,
+        )
+        for m in pat.finditer(text):
+            if any(m.start() in r for r in taken):
+                continue
+            taken.append(range(m.start(), m.end()))
+            low, high = m.group(3) or "", m.group(4) or ""
+            if m.group(5) == ">":
+                low = m.group(6)
+            elif m.group(5) == "<":
+                high = m.group(6)
+            rows.append({
+                "test": text[m.start():m.start() + len(syn)],
+                "value": m.group(1),
+                "unit": m.group(2) or "",
+                "ref_low": low,
+                "ref_high": high,
+                "date": doc_date,
+                "source_span": text[m.start():m.end()],
+            })
+    return rows
+
+
+def mock_extract_diagnoses(text: str) -> List[Dict[str, str]]:
+    found: List[Dict[str, str]] = []
+    lower = text.lower()
+    covered: List[range] = []
+    for term in DIAGNOSIS_TERMS:
+        for m in re.finditer(rf"\b{re.escape(term)}\b", lower):
+            if any(m.start() in r for r in covered):
+                continue
+            if _NEGATION_RE.search(lower[max(0, m.start() - 40):m.start()]):
+                continue
+            covered.append(range(m.start(), m.end()))
+            span = text[m.start():m.end()]
+            found.append({"name": span, "source_span": span})
+    return found
+
+
+def mock_extract_medications(text: str) -> List[Dict[str, str]]:
+    from app.services.medication_extraction import extract_medications_from_text
+    meds = []
+    for m in extract_medications_from_text(text):
+        name = m.get("name") or ""
+        idx = text.lower().find(name.lower())
+        meds.append({
+            "name": text[idx:idx + len(name)] if idx >= 0 else name,
+            "dose": m.get("dosage") or "",
+            "frequency": "" if m.get("frequency") in (None, "Unspecified") else m["frequency"],
+            "route": "",
+            "duration": m.get("duration") or "",
+            "source_span": text[idx:idx + len(name)] if idx >= 0 else name,
+        })
+    return meds
+
+
+# keyword -> (consideration name, likelihood, suggested questions/tests)
+CONSIDERATION_RULES = [
+    (["chest pain", "chest discomfort", "chest tightness"],
+     "Consider ischaemic chest pain (findings consistent with possible angina)", "possible",
+     ["Ask about exertional pattern and relief with rest", "Consider ECG and troponin"]),
+    (["creatinine"], "Consider reduced renal function", "possible",
+     ["Consider repeat serum creatinine and urine albumin-to-creatinine ratio"]),
+    (["hba1c", "glucose", "diabetes"], "Consider suboptimal glycaemic control", "possible",
+     ["Consider fasting plasma glucose and HbA1c review"]),
+    (["haemoglobin", "hemoglobin", "anaemia", "anemia"], "Consider anaemia work-up", "possible",
+     ["Consider complete blood count with indices and iron studies"]),
+    (["fever", "cough"], "Consider respiratory tract infection", "possible",
+     ["Ask about sputum and duration of fever", "Consider chest examination findings"]),
+]
+
+
+def _cite(entry: Dict[str, str], keyword: str) -> Dict[str, str]:
+    text = entry.get("text", "")
+    i = text.lower().find(keyword)
+    quote = text[i:i + len(keyword)] if i >= 0 else ""
+    return {"finding": f"{keyword} noted in record", "evidence_ref": entry["ref"], "quote": quote}
 
 
 class MockLLMProvider(BaseLLMProvider):
     """Deterministic mock LLM provider for unit and integration testing."""
 
-    def __init__(self, model_name: str = "mock-clinical-v1"):
+    def __init__(self, model_name: str = "mock-clinical-v2"):
         self.model_name = model_name
         self.call_history: List[Dict[str, Any]] = []
+        self.overrides: Dict[str, Union[Dict[str, Any], Callable[[Dict[str, Any]], Dict[str, Any]]]] = {}
+        self.force_unavailable = False
+
+    def reset(self) -> None:
+        self.call_history.clear()
+        self.overrides.clear()
+        self.force_unavailable = False
 
     async def health_check(self) -> Dict[str, Any]:
         return {
-            "status": "healthy",
+            "status": "offline" if self.force_unavailable else "healthy",
             "provider": "mock",
             "model": self.model_name,
             "offline_mode": True,
+            "available": not self.force_unavailable,
+            "vision_capable": True,
         }
 
     async def generate(
@@ -37,243 +178,136 @@ class MockLLMProvider(BaseLLMProvider):
         self.call_history.append({
             "task": task,
             "encounter_id": encounter_id,
-            "content_len": len(user_content),
+            "content_len": len(user_content or ""),
             "has_images": bool(images),
+            "system_prompt": system_prompt,
+            "user_content": user_content,
         })
+        if self.force_unavailable:
+            raise LLMUnavailableError("Mock provider set to unavailable")
 
-        content_lower = user_content.lower()
+        payload = _parse_payload(user_content)
+        override = self.overrides.get(task)
+        if override is not None:
+            out = override(payload) if callable(override) else json.loads(json.dumps(override))
+        else:
+            out = self._respond(task, payload, user_content)
+        out["_usage"] = {"model": self.model_name, "input_tokens": 0, "output_tokens": 0}
+        return out
 
-        # ── 1. Document classification ──
+    def _respond(self, task: str, payload: Dict[str, Any], raw: str) -> Dict[str, Any]:
+        text = payload.get("document_text") or ""
+        catalogue: List[Dict[str, str]] = payload.get("evidence_catalogue") or []
+
         if task == "document_classification":
-            doc_type = "prescription"
-            if any(k in content_lower for k in ["lab", "serum", "haemoglobin", "creatinine", "test report", "pathology", "blood"]):
-                doc_type = "lab_report"
-            elif any(k in content_lower for k in ["discharge", "admission", "hospital course", "ipd"]):
+            low = text.lower()
+            doc_type = "other"
+            if any(k in low for k in ["discharge", "hospital course", "date of admission"]):
                 doc_type = "discharge_summary"
-            elif any(k in content_lower for k in ["x-ray", "mri", "ct scan", "ultrasound", "imaging"]):
+            elif any(k in low for k in ["x-ray", "mri", "ct scan", "ultrasound", "impression:"]):
                 doc_type = "imaging_report"
+            elif any(k in low for k in ["ref", "reference", "lab", "pathology", "blood count", "serum"]):
+                doc_type = "lab_report"
+            elif any(k in low for k in ["rx", "tab", "cap", "prescri", " mg"]):
+                doc_type = "prescription"
+            date_m = _DATE_RE.search(text)
+            return {"document_type": doc_type, "issuing_facility": "", "issuing_doctor": "",
+                    "document_date": date_m.group(1) if date_m else ""}
 
-            return {
-                "document_type": doc_type,
-                "confidence": 0.96,
-                "issuing_facility": "Metropolitan Health Services",
-                "issuing_doctor": "Dr. R. K. Mehta, MD",
-                "document_date": "2026-05-15",
-                "notes": "Verified high clarity document text"
-            }
-
-        # ── 2. Type-specific document extraction ──
         if task == "document_extraction":
-            # Extract grounded items matching text
-            diagnoses = []
-            if "type 2 diabetes" in content_lower or "diabetes" in content_lower:
-                diagnoses.append({
-                    "name": "Type 2 Diabetes Mellitus",
-                    "source_span": "Type 2 Diabetes" if "Type 2 Diabetes" in user_content else "diabetes",
-                    "status": "documented"
-                })
-            if "hypertension" in content_lower:
-                diagnoses.append({
-                    "name": "Essential Hypertension",
-                    "source_span": "Hypertension" if "Hypertension" in user_content else "hypertension",
-                    "status": "documented"
-                })
-
-            medications = []
-            if "metformin" in content_lower:
-                medications.append({
-                    "name": "Metformin",
-                    "dose": "500 mg",
-                    "frequency": "twice daily",
-                    "route": "oral",
-                    "duration": "ongoing",
-                    "source_span": "Metformin 500mg" if "Metformin 500mg" in user_content else "metformin"
-                })
-            if "atorvastatin" in content_lower:
-                medications.append({
-                    "name": "Atorvastatin",
-                    "dose": "20 mg",
-                    "frequency": "once daily at bedtime",
-                    "route": "oral",
-                    "duration": "ongoing",
-                    "source_span": "Atorvastatin 20mg" if "Atorvastatin 20mg" in user_content else "atorvastatin"
-                })
-            if "amoxicillin" in content_lower:
-                medications.append({
-                    "name": "Amoxicillin",
-                    "dose": "500 mg",
-                    "frequency": "TDS",
-                    "route": "oral",
-                    "duration": "5 days",
-                    "source_span": "Amoxicillin" if "Amoxicillin" in user_content else "amoxicillin"
-                })
-
-            lab_rows = []
-            if "creatinine" in content_lower:
-                # Find number near creatinine
-                match = re.search(r"creatinine[^\d]*(\d+(?:\.\d+)?)", content_lower)
-                val = float(match.group(1)) if match else 1.4
-                lab_rows.append({
-                    "test": "Serum Creatinine",
-                    "normalized_test": "creatinine",
-                    "value": val,
-                    "unit": "mg/dL",
-                    "ref_low": 0.7,
-                    "ref_high": 1.3,
-                    "date": "2026-05-15",
-                    "source_span": f"Creatinine {val}" if f"Creatinine {val}" in user_content else "creatinine"
-                })
-            if "haemoglobin" in content_lower or "hb" in content_lower:
-                match = re.search(r"(?:haemoglobin|hb)[^\d]*(\d+(?:\.\d+)?)", content_lower)
-                val = float(match.group(1)) if match else 13.5
-                lab_rows.append({
-                    "test": "Haemoglobin",
-                    "normalized_test": "haemoglobin",
-                    "value": val,
-                    "unit": "g/dL",
-                    "ref_low": 12.0,
-                    "ref_high": 16.0,
-                    "date": "2026-05-15",
-                    "source_span": f"Haemoglobin {val}" if f"Haemoglobin {val}" in user_content else "haemoglobin"
-                })
-
             return {
-                "diagnoses": diagnoses,
-                "medications": medications,
-                "lab_rows": lab_rows,
+                "diagnoses": mock_extract_diagnoses(text),
+                "medications": mock_extract_medications(text),
+                "lab_rows": mock_extract_labs(text),
                 "procedures": [],
-                "dates": ["2026-05-15"],
-                "issuing_doctor": "Dr. R. K. Mehta",
-                "issuing_facility": "Metropolitan Health Services"
+                "dates": _DATE_RE.findall(text),
+                "issuing_doctor": "",
+                "issuing_facility": "",
             }
 
-        # ── 3. Disease considerations ──
         if task == "disease_considerations":
-            return {
-                "considerations": [
-                    {
-                        "name": "Type 2 Diabetes Mellitus with suboptimal glycemic control",
-                        "likelihood": "more likely",
-                        "supporting_findings": [
-                            {"finding": "Elevated HbA1c reported in records", "evidence": "hba1c 8.2%"},
-                            {"finding": "Reported polyuria and polydipsia", "evidence": "interview_symptoms"}
-                        ],
-                        "findings_against": [
-                            {"finding": "No documented diabetic ketoacidosis history", "evidence": "interview_history"}
-                        ],
-                        "suggested_confirmatory_tests": [
-                            "Fasting Plasma Glucose (FPG)",
-                            "Urine Albumin-to-Creatinine Ratio (uACR)"
-                        ]
-                    },
-                    {
-                        "name": "Essential Hypertension",
-                        "likelihood": "possible",
-                        "supporting_findings": [
-                            {"finding": "Prescribed antihypertensive medication in active documents", "evidence": "amlodipine 5mg"}
-                        ],
-                        "findings_against": [
-                            {"finding": "No current documented end-organ retinal changes", "evidence": "document_review"}
-                        ],
-                        "suggested_confirmatory_tests": [
-                            "Serial Ambulatory Blood Pressure Monitoring (ABPM)"
-                        ]
-                    }
-                ]
-            }
+            out = []
+            for keywords, name, likelihood, suggestions in CONSIDERATION_RULES:
+                support = []
+                for entry in catalogue:
+                    low = entry.get("text", "").lower()
+                    kw = next((k for k in keywords if k in low), None)
+                    if kw:
+                        support.append(_cite(entry, kw))
+                if support:
+                    out.append({"name": name, "likelihood": likelihood,
+                                "supporting_findings": support[:3], "findings_against": [],
+                                "suggested_questions_or_tests": suggestions})
+            return {"considerations": out[:5]}
 
-        # ── 4. Treatment and dose reference ──
         if task == "treatment_reference":
-            return {
-                "guideline_summaries": [
-                    {
-                        "topic": "Type 2 Diabetes Glycemic Management",
-                        "guideline_source": "Standard Treatment Workflow (SAMPLE – replace with verified source)",
-                        "citation": "Section 4.1: Initial Metformin Dosing",
-                        "recommended_regimen": "First-line oral monotherapy titration for adult patients with adequate eGFR.",
-                        "dose_quotation": "Metformin 500 mg orally once or twice daily with meals, titrating gradually up to 1000 mg twice daily.",
-                        "contraindications": ["eGFR < 30 mL/min/1.73m²", "Severe hepatic impairment"],
-                        "cautions": "Monitor serum creatinine annually."
-                    }
-                ]
-            }
+            passages = payload.get("passages") or []
+            summaries = []
+            for p in passages:
+                sentences = re.split(r"(?<=\.)\s+", p.get("text", ""))
+                dose = next((s for s in sentences if re.search(r"\d+\s*mg", s)), "")
+                summaries.append({"topic": p.get("topic", ""), "passage_id": int(p["id"]),
+                                  "summary": sentences[0] if sentences else "",
+                                  "dose_quotation": dose.rstrip("."), "cautions": ""})
+            return {"nothing_relevant": not summaries, "summaries": summaries}
 
-        # ── 5. Trend interpretation ──
         if task == "trend_interpretation":
-            # Clinical sentence using only computed numbers and configured rule match
-            return {
-                "interpretation": "Creatinine rose from 1.0 mg/dL to 1.8 mg/dL over 90 days, meeting the configured rise criterion; this may indicate reduced renal function. Clinical correlation required."
-            }
+            verb = {"rising": "rose", "falling": "fell"}.get(payload.get("direction"), "changed")
+            span = payload.get("time_span_days")
+            over = f" over {span} days" if span is not None else ""
+            unit = f" {payload.get('unit')}" if payload.get("unit") else ""
+            rule = payload.get("matched_rule_id") or "configured"
+            return {"interpretation": (
+                f"{str(payload.get('test', 'The test')).capitalize()} {verb} from "
+                f"{payload.get('previous_value')} to {payload.get('current_value')}{unit}{over}, "
+                f"meeting the configured {rule} criterion. Clinical correlation required.")}
 
-        # ── 6. Case summary ──
         if task == "case_summary":
-            return {
-                "chief_complaint": "Persistent fatigue and increased thirst over past 3 weeks.",
-                "hpi": "A 45-year-old patient reports progressive fatigue and polydipsia without acute fever or chills.",
-                "pmh_psh": "Documented history of Type 2 Diabetes diagnosed 2 years ago.",
-                "drug_allergy": "Reports Penicillin allergy (hives). Current medications include Metformin 500mg BD.",
-                "family_history": "Maternal history of diabetes and cardiovascular disease.",
-                "personal_history": "Non-smoker, sedentary lifestyle.",
-                "ros": "Positive for fatigue and nocturia; negative for chest pain, dyspnea, or vision loss.",
-                "prior_investigations": "Documented HbA1c 8.2% and Serum Creatinine 1.1 mg/dL.",
-                "source_references": [
-                    {"section": "chief_complaint", "source": "interview:chief_complaint"},
-                    {"section": "pmh_psh", "source": "doc:1:diagnoses"},
-                    {"section": "drug_allergy", "source": "interview:allergies"}
-                ]
+            by_prefix = {
+                "chief_complaint": ["interview:chief_complaint"],
+                "hpi": ["interview:symptom_duration", "interview:symptom_severity",
+                        "interview:associated_symptoms", "interview:pain_location"],
+                "pmh_psh": ["dx:", "interview:chronic_conditions_detail", "interview:surgery_details"],
+                "drug_allergy": ["interview:medication_details", "interview:allergy_details", "med:"],
+                "family": ["interview:family_history"],
+                "prior_investigations": ["lab:"],
             }
+            sections = []
+            for section, prefixes in by_prefix.items():
+                hits = [e for e in catalogue if any(e["ref"].startswith(p) for p in prefixes)]
+                if hits:
+                    sections.append({"section": section,
+                                     "text": "; ".join(e["text"] for e in hits[:4]),
+                                     "evidence_refs": [e["ref"] for e in hits[:4]]})
+            return {"sections": sections}
 
-        # ── 7. Questions to ask ──
         if task == "questions_to_ask":
-            return {
-                "questions": [
-                    {
-                        "question": "Can you verify if you have ever had an adverse allergic reaction to penicillin or amoxicillin?",
-                        "reason": "Discrepancy between patient-reported penicillin allergy and prescription containing amoxicillin.",
-                        "evidence_gap": "Prescription lists Amoxicillin 500mg whereas intake interview reports Penicillin allergy."
-                    },
-                    {
-                        "question": "How often have you been missing doses of your morning Metformin?",
-                        "reason": "Elevated HbA1c suggests suboptimal adherence or progression requiring dose adjustment.",
-                        "evidence_gap": "Documented HbA1c 8.2% despite documented ongoing metformin prescription."
-                    }
-                ]
-            }
+            qs = []
+            for c in payload.get("conflicts") or []:
+                qs.append({"question": f"Can you clarify this point: {c.get('field', '').replace('_', ' ')}?",
+                           "reason": c.get("description", ""), "evidence_refs": [c.get("ref", "")]})
+            for gap in payload.get("missing") or []:
+                qs.append({"question": f"Can you tell me more about your {gap.replace('_', ' ')}?",
+                           "reason": "Not answered in the interview (unknown, not negative).",
+                           "evidence_refs": [f"missing:{gap}"]})
+            return {"questions": qs[:8]}
 
-        # ── 8. AI follow-up interview questions ──
         if task == "followup_questions":
-            return {
-                "followups": [
-                    {
-                        "key": "socrates_onset",
-                        "text": "Did your symptoms start suddenly or did they develop gradually over several days?",
-                        "reason": "SOCRATES symptom onset characterization",
-                        "group": "symptoms"
-                    },
-                    {
-                        "key": "socrates_severity",
-                        "text": "On a scale from 1 to 10, how severe would you rate your discomfort at its worst?",
-                        "reason": "SOCRATES severity quantification",
-                        "group": "symptoms"
-                    }
-                ]
-            }
+            return {"followups": [
+                {"text": "When did this problem first start?", "socrates_dimension": "onset",
+                 "reason": "SOCRATES onset"},
+                {"text": "What makes it better or worse?", "socrates_dimension": "exacerbating_relieving",
+                 "reason": "SOCRATES exacerbating and relieving factors"},
+            ]}
 
-        # ── 9. Handwriting Vision Fallback ──
         if task == "handwriting_transcription":
             return {
-                "transcription": "Rx: Tab Metformin 500mg 1-0-1 after food x 30 days.\nTab Telmisartan 40mg 1-0-0 x 30 days.\nFollow up after 1 month with Fasting Blood Sugar and S. Creatinine.",
-                "medications": [
-                    {"name": "Metformin", "dosage": "500 mg", "frequency": "twice daily"},
-                    {"name": "Telmisartan", "dosage": "40 mg", "frequency": "once daily"}
-                ],
-                "labs": [
-                    {"test_name": "Fasting Blood Sugar", "value": "pending", "reference_range": "70-99 mg/dL"},
-                    {"test_name": "S. Creatinine", "value": "pending", "reference_range": "0.7-1.3 mg/dL"}
-                ],
-                "notes": "Handwritten clinical script transcribed via vision fallback."
+                "transcription": "Rx: Tab Metformin 500mg 1-0-1 after food x 30 days.\n"
+                                 "Tab Telmisartan 40mg 1-0-0 x 30 days.",
+                "medications": [{"name": "Metformin", "dose": "500mg", "frequency": "1-0-1"},
+                                {"name": "Telmisartan", "dose": "40mg", "frequency": "1-0-0"}],
+                "lab_rows": [],
+                "illegible_segments": 0,
             }
 
-        # Fallback default
-        return {"status": "ok", "message": "Mock generation completed"}
-
+        return {}

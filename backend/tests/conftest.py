@@ -45,3 +45,12 @@ async def auth_headers(client):
     assert resp.status_code == 200, resp.text
     token = resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture(autouse=True)
+def reset_mock_llm():
+    """Each test starts with a clean mock LLM (no overrides, available)."""
+    from app.services.llm.manager import llm_service
+    llm_service.mock.reset()
+    yield
+    llm_service.mock.reset()

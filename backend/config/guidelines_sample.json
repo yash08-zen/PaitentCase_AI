@@ -1,0 +1,50 @@
+{
+  "_notice": "SAMPLE – replace with verified source. These passages are placeholders written for the prototype. They are NOT taken from, and must not be attributed to, any real guideline or publication. Replace them with verified sources via scripts/ingest_guidelines.py before any real use.",
+  "passages": [
+    {
+      "source": "Sample Treatment Workflow (SAMPLE – replace with verified source)",
+      "version_date": "2026-01-15",
+      "condition_or_topic": "Type 2 Diabetes Mellitus",
+      "section": "Section 4.1: Initial Pharmacological Management",
+      "passage_text": "In adults with newly diagnosed type 2 diabetes without symptomatic hyperglycaemia, metformin is the usual initial oral therapy when renal function is adequate. Initial dosing: Metformin 500 mg orally once or twice daily with meals, titrated gradually up to 1000 mg twice daily. Avoid in severe renal impairment (eGFR below 30), metabolic acidosis or severe hepatic dysfunction. SAMPLE – replace with verified source.",
+      "citations": ["Sample Treatment Workflow (SAMPLE – replace with verified source), Sec 4.1"],
+      "is_sample": true
+    },
+    {
+      "source": "Sample Hypertension Protocol (SAMPLE – replace with verified source)",
+      "version_date": "2026-02-01",
+      "condition_or_topic": "Essential Hypertension",
+      "section": "Section 3.2: First-Line Monotherapy",
+      "passage_text": "For adults with confirmed essential hypertension and no compelling indication for a specific class, first-line agents include ACE inhibitors, ARBs or dihydropyridine calcium channel blockers. Initial dosing: Amlodipine 5 mg orally once daily, titrated to 10 mg daily as clinically indicated, or Telmisartan 40 mg orally once daily, with blood pressure reassessment at 4 weeks. SAMPLE – replace with verified source.",
+      "citations": ["Sample Hypertension Protocol (SAMPLE – replace with verified source), Sec 3.2"],
+      "is_sample": true
+    },
+    {
+      "source": "Sample Adult Infection Protocol (SAMPLE – replace with verified source)",
+      "version_date": "2026-03-10",
+      "condition_or_topic": "Community-Acquired Pneumonia",
+      "section": "Section 2.3: Outpatient Empirical Therapy",
+      "passage_text": "In low-severity community-acquired pneumonia (CURB-65 score 0-1) without comorbidities, empirical therapy is Amoxicillin 500 mg orally three times daily for 5 days. In patients with penicillin hypersensitivity, Azithromycin 500 mg on day 1 followed by 250 mg once daily on days 2-5. SAMPLE – replace with verified source.",
+      "citations": ["Sample Adult Infection Protocol (SAMPLE – replace with verified source), Sec 2.3"],
+      "is_sample": true
+    },
+    {
+      "source": "Sample Lipid Protocol (SAMPLE – replace with verified source)",
+      "version_date": "2026-01-20",
+      "condition_or_topic": "Dyslipidemia",
+      "section": "Section 5.1: Statin Therapy",
+      "passage_text": "Moderate-intensity statin therapy is considered for patients with documented atherosclerotic cardiovascular disease, or diabetes aged 40-75. Initial dosing: Atorvastatin 20 mg orally once daily, with lipid panel reassessment in 8-12 weeks. Avoid in active liver disease and pregnancy. SAMPLE – replace with verified source.",
+      "citations": ["Sample Lipid Protocol (SAMPLE – replace with verified source), Sec 5.1"],
+      "is_sample": true
+    },
+    {
+      "source": "Sample Chest Pain Pathway (SAMPLE – replace with verified source)",
+      "version_date": "2026-04-05",
+      "condition_or_topic": "Chest Pain",
+      "section": "Section 1.2: Initial Assessment",
+      "passage_text": "Adults presenting with chest pain should have a 12-lead ECG and clinical risk assessment. Exertional chest pain with associated breathlessness or sweating warrants urgent evaluation for an acute coronary syndrome, including serial troponin measurement. No drug dose is given in this sample passage. SAMPLE – replace with verified source.",
+      "citations": ["Sample Chest Pain Pathway (SAMPLE – replace with verified source), Sec 1.2"],
+      "is_sample": true
+    }
+  ]
+}

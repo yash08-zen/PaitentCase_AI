@@ -17,6 +17,7 @@ PHONE_PATTERN = re.compile(r"\b(?:\+91[\s-]?)?[6-9]\d{9}\b|\b\d{3}[-.\s]?\d{3}[-
 EMAIL_PATTERN = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
 PIN_CODE_PATTERN = re.compile(r"\b(?:Pin|PIN|Pincode|Pin Code)[\s:]*([1-9][0-9]{5})\b")
 MRN_PATTERN = re.compile(r"\b(?:MRN|UHID|PID|Patient\s*ID|Reg\.?\s*No\.?)[\s:]*([A-Za-z0-9/-]+)", re.IGNORECASE)
+ADDRESS_PATTERN = re.compile(r"\b(?:Address|Addr\.?|Residence|R/o)[\s:]+([^\n]+)", re.IGNORECASE)
 NAME_HEADER_PATTERN = re.compile(r"(?:Patient\s*Name|Name|Pt\.?\s*Name)[\s:]+([A-Za-z\s.]+?)(?=\n|,|Age|Sex|Gender|DOB|Date|$)", re.IGNORECASE)
 
 
@@ -102,7 +103,16 @@ class TextScrubber:
             return full
         scrubbed = NAME_HEADER_PATTERN.sub(sub_name_hdr, scrubbed)
 
-        # 9. PIN codes
+        # 9. Address lines
+        def sub_addr(m):
+            full = m.group(0)
+            addr = m.group(1).strip()
+            if addr and not addr.startswith("["):
+                return full.replace(addr, get_token("address", addr))
+            return full
+        scrubbed = ADDRESS_PATTERN.sub(sub_addr, scrubbed)
+
+        # 10. PIN codes
         def sub_pin(m):
             full = m.group(0)
             code = m.group(1)

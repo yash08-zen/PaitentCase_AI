@@ -40,6 +40,13 @@ async def lifespan(app: FastAPI):
     await init_db()
     await seed_questions()
     await ensure_default_admin()
+    from app.services.llm.manager import HOSTED_CONSENT_LINE, llm_service
+    if llm_service.mode == "hosted":
+        print(f"[startup] WARNING: LLM_PROVIDER=hosted. {HOSTED_CONSENT_LINE}")
+        if not settings.ANTHROPIC_API_KEY:
+            print("[startup] WARNING: ANTHROPIC_API_KEY is not set; AI features will report llm_unavailable.")
+    else:
+        print(f"[startup] LLM_PROVIDER={llm_service.mode}: no clinical text leaves this machine.")
     yield
     # Shutdown (nothing to clean up for SQLite)
 

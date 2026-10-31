@@ -33,7 +33,7 @@ COMMON_MEDICATIONS = [
     "atorvastatin", "rosuvastatin", "simvastatin", "amlodipine", "lisinopril",
     "losartan", "metoprolol", "atenolol", "hydrochlorothiazide", "telmisartan",
     "ramipril", "enalapril", "valsartan", "carvedilol", "furosemide", "spironolactone",
-    "clopidogrel", "diltiazem", "verapamil",
+    "clopidogrel", "diltiazem", "verapamil", "warfarin", "acenocoumarol",
 
     # Endocrine / Diabetes / Thyroid
     "metformin", "glimepiride", "gliclazide", "sitagliptin", "empagliflozin",

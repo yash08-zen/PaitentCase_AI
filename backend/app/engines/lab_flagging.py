@@ -67,6 +67,51 @@ CRITICAL_THRESHOLDS: Dict[str, Dict[str, float]] = {
 }
 
 
+# Canonical unit per normalized test, with deterministic conversions from
+# alternate units (factor multiplies the alternate value into the canonical unit).
+CANONICAL_UNITS: Dict[str, Dict[str, Any]] = {
+    "creatinine": {"unit": "mg/dL", "convert": {"umol/l": 1 / 88.4, "µmol/l": 1 / 88.4}},
+    "fasting_blood_glucose": {"unit": "mg/dL", "convert": {"mmol/l": 18.016}},
+    "postprandial_blood_glucose": {"unit": "mg/dL", "convert": {"mmol/l": 18.016}},
+    "haemoglobin": {"unit": "g/dL", "convert": {"g/l": 0.1}},
+    "blood_urea": {"unit": "mg/dL", "convert": {"mmol/l": 6.006}},
+    "blood_urea_nitrogen": {"unit": "mg/dL", "convert": {"mmol/l": 2.801}},
+    "potassium": {"unit": "mmol/L", "convert": {"meq/l": 1.0}},
+    "sodium": {"unit": "mmol/L", "convert": {"meq/l": 1.0}},
+}
+
+
+def _unit_key(unit: Optional[str]) -> str:
+    return (unit or "").strip().lower().replace(" ", "").replace("μ", "µ").replace("micromol", "umol")
+
+
+def normalize_units(
+    normalized_test: str,
+    value: float,
+    unit: Optional[str],
+    ref_low: Optional[float],
+    ref_high: Optional[float],
+) -> Tuple[float, Optional[str], Optional[float], Optional[float], Optional[str]]:
+    """
+    Convert value and printed reference range into the canonical unit for the test.
+    Returns (value, unit, ref_low, ref_high, note). Unknown units are left untouched
+    and reported in note; nothing is guessed.
+    """
+    spec = CANONICAL_UNITS.get(normalized_test)
+    if not spec or not unit:
+        return value, unit, ref_low, ref_high, None
+    if _unit_key(unit) == _unit_key(spec["unit"]):
+        return value, spec["unit"], ref_low, ref_high, None
+    factor = spec["convert"].get(_unit_key(unit))
+    if factor is None:
+        return value, unit, ref_low, ref_high, f"unit '{unit}' not normalized"
+
+    def conv(x: Optional[float]) -> Optional[float]:
+        return round(x * factor, 2) if x is not None else None
+
+    return conv(value), spec["unit"], conv(ref_low), conv(ref_high), f"converted from {unit}"
+
+
 def normalize_test_name(raw_name: str) -> str:
     """Normalize test name using clinical synonym dictionary."""
     clean = re.sub(r"[^a-zA-Z0-9\s+]", "", raw_name).strip().lower()
@@ -112,17 +157,26 @@ def process_lab_row(row_dict: Dict[str, Any]) -> Dict[str, Any]:
     test_name = row_dict.get("test") or row_dict.get("name") or "Unknown Test"
     norm_name = row_dict.get("normalized_test") or normalize_test_name(test_name)
 
-    val = float(row_dict.get("value", 0.0))
+    raw_value = row_dict.get("value")
+    if raw_value is None or str(raw_value).strip() == "":
+        raise ValueError(f"Lab row '{test_name}' has no value; refusing to invent one.")
+    val = float(raw_value)
     ref_low = float(row_dict["ref_low"]) if row_dict.get("ref_low") is not None else None
     ref_high = float(row_dict["ref_high"]) if row_dict.get("ref_high") is not None else None
 
+    val, unit, ref_low, ref_high, unit_note = normalize_units(
+        norm_name, val, row_dict.get("unit"), ref_low, ref_high
+    )
     flag, desc = flag_lab_value(val, ref_low, ref_high, norm_name)
 
     return {
         "test_name": test_name,
         "normalized_test": norm_name,
         "value": val,
-        "unit": row_dict.get("unit"),
+        "unit": unit,
+        "unit_note": unit_note,
+        "original_value": raw_value,
+        "original_unit": row_dict.get("unit"),
         "ref_low": ref_low,
         "ref_high": ref_high,
         "flag": flag,

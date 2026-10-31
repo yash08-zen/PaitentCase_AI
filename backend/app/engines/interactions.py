@@ -230,6 +230,26 @@ def check_wrong_patient(
                 "severity": "critical"
             })
 
+    # Sex check if present
+    if patient_gender:
+        sex_match = re.search(r"\b(?:Sex|Gender)[\s:/]*(male|female|m|f)\b", doc_text, re.IGNORECASE)
+        if sex_match:
+            doc_sex = "female" if sex_match.group(1).lower().startswith("f") else "male"
+            reg_sex = "female" if patient_gender.strip().lower().startswith("f") else (
+                "male" if patient_gender.strip().lower().startswith("m") else None
+            )
+            if reg_sex and doc_sex != reg_sex:
+                conflicts.append({
+                    "rule_id": "RULE-WRONG-PATIENT",
+                    "field": "patient_sex_mismatch",
+                    "source_a": f"registered_sex:{patient_gender}",
+                    "value_a": patient_gender,
+                    "source_b": f"document_header_sex:{sex_match.group(1)}",
+                    "value_b": sex_match.group(1),
+                    "description": f"Document records sex '{sex_match.group(1)}' while registered patient is '{patient_gender}'. Possible wrong-patient document.",
+                    "severity": "critical"
+                })
+
     # Age check if present
     if patient_age is not None:
         age_match = re.search(r"\b(?:Age|Yrs|Years)[\s:]*(\d{1,3})\b", doc_text, re.IGNORECASE)
@@ -249,3 +269,27 @@ def check_wrong_patient(
 
     return conflicts
 
+
+
+def check_lab_abnormal(lab_rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    RULE-LAB-ABNORMAL: a lab value falls outside the reference range printed on
+    its own document. Rows flagged 'range_not_available' never trigger this rule.
+    """
+    conflicts: List[Dict[str, Any]] = []
+    for row in lab_rows:
+        flag = row.get("flag")
+        if flag not in ("low", "high", "critical_low", "critical_high"):
+            continue
+        rng = f"{row.get('ref_low') if row.get('ref_low') is not None else '-'}–{row.get('ref_high') if row.get('ref_high') is not None else '-'}"
+        conflicts.append({
+            "rule_id": "RULE-LAB-ABNORMAL",
+            "field": f"lab:{row.get('normalized_test')}",
+            "source_a": "document_lab_value",
+            "value_a": f"{row.get('value')} {row.get('unit') or ''}".strip(),
+            "source_b": "document_printed_reference_range",
+            "value_b": rng,
+            "description": f"{row.get('test_name')} = {row.get('value')} {row.get('unit') or ''} is {flag.replace('_', ' ')} against the printed range {rng}.",
+            "severity": "critical" if flag.startswith("critical") else "moderate",
+        })
+    return conflicts

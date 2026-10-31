@@ -51,75 +51,19 @@ class AdaptiveEngine:
         from app.core.config import settings
         answered = await self._get_answered_map(encounter_id)
 
-        # Optional Feature-Flagged AI Follow-Up Question
-        if settings.AI_FOLLOWUPS_ENABLED and "chief_complaint" in answered:
-            has_followup = any(k.startswith(f"ai_followup_{encounter_id}") for k in answered)
-            if not has_followup:
-                cc = str(answered["chief_complaint"]).lower()
-                if any(w in cc for w in ["tightness", "discomfort", "pain", "headache", "fatigue", "fever", "cough"]):
-                    try:
-                        from app.services.llm.manager import llm_service
-                        res, _ = await llm_service.generate(
-                            task="followup_questions",
-                            system_prompt=(
-                                "Generate 1 non-leading follow-up question using the SOCRATES pain/symptom "
-                                "assessment framework. Do NOT suggest diagnoses. Do NOT ask compound questions."
-                            ),
-                            user_content=f"Patient reports chief complaint: {answered['chief_complaint']}",
-                            json_schema={
-                                "type": "object",
-                                "properties": {
-                                    "followups": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "object",
-                                            "properties": {
-                                                "key": {"type": "string"},
-                                                "text": {"type": "string"},
-                                                "reason": {"type": "string"},
-                                                "group": {"type": "string"}
-                                            },
-                                            "required": ["text"]
-                                        }
-                                    }
-                                },
-                                "required": ["followups"]
-                            },
-                            encounter_id=encounter_id
-                        )
-                        followups = res.get("followups", [])
-                        if followups and followups[0].get("text"):
-                            item = followups[0]
-                            q_key = f"ai_followup_{encounter_id}"
-                            existing_q = await self.db.scalar(select(Question).where(Question.key == q_key))
-                            if not existing_q:
-                                ai_q = Question(
-                                    key=q_key,
-                                    label="AI Clarification",
-                                    section="Symptoms",
-                                    text=item["text"],
-                                    placeholder="Provide additional details if applicable...",
-                                    help="Non-leading clinical follow-up question (SOCRATES framework). Optional.",
-                                    answer_type="text",
-                                    group="symptoms",
-                                    order=2,
-                                    is_required=False,
-                                    because="SOCRATES Clarification"
-                                )
-                                self.db.add(ai_q)
-                                await self.db.commit()
-                                await self.db.refresh(ai_q)
-                                return NextQuestionResponse(
-                                    question=QuestionOut.model_validate(ai_q),
-                                    progress=0.15,
-                                    is_complete=False,
-                                    adaptive_note="AI SOCRATES symptom exploration (optional)",
-                                    answered_count=len(answered),
-                                    total_applicable=len(answered) + 10,
-                                    can_go_back=True,
-                                )
-                    except Exception:
-                        pass
+        # Optional, feature-flagged AI follow-up (deterministic flow stays the default/fallback)
+        if settings.AI_FOLLOWUPS_ENABLED and answered.get("chief_complaint"):
+            ai_q = await self._ai_followup_question(encounter_id, answered)
+            if ai_q is not None:
+                return NextQuestionResponse(
+                    question=QuestionOut.model_validate(ai_q),
+                    progress=0.15,
+                    is_complete=False,
+                    adaptive_note="AI SOCRATES symptom exploration (optional)",
+                    answered_count=len(answered),
+                    total_applicable=len(answered) + 10,
+                    can_go_back=True,
+                )
         all_questions = await self._load_questions_ordered()
         applicable = [q for q in all_questions if self._is_applicable(q, answered)]
         answered_count = sum(1 for q in applicable if q.key in answered)
@@ -364,9 +308,63 @@ class AdaptiveEngine:
     # ------------------------------------------------------------------
 
     async def _load_questions_ordered(self) -> List[Question]:
+        # AI follow-ups are per-encounter and only served by _ai_followup_question
         return (
-            await self.db.scalars(select(Question).order_by(Question.order))
+            await self.db.scalars(
+                select(Question).where(~Question.key.startswith("ai_followup_")).order_by(Question.order)
+            )
         ).all()
+
+    async def _ai_followup_question(self, encounter_id: int, answered: Dict[str, str]) -> Optional[Question]:
+        """
+        Ask the LLM for SOCRATES follow-ups once per encounter. A proposal is used
+        only if it passes services/followup_safety.py; proposals that map to the
+        question bank are left to the deterministic flow. Any failure returns None.
+        """
+        prefix = f"ai_followup_{encounter_id}_"
+        if any(k.startswith(prefix) for k in answered):
+            return None
+        existing = await self.db.scalar(select(Question).where(Question.key.startswith(prefix)))
+        if existing is not None:
+            return existing  # proposed earlier, not yet answered
+        try:
+            from app.services.followup_safety import screen_followups
+            from app.services.llm.manager import llm_service
+            from app.services.llm.prompts import SCHEMAS, SYSTEM_PROMPTS, wrap_case_data
+
+            res, _ = await llm_service.generate(
+                task="followup_questions",
+                system_prompt=SYSTEM_PROMPTS["followup_questions"],
+                user_content=wrap_case_data({"chief_complaint": answered["chief_complaint"]}),
+                json_schema=SCHEMAS["followup_questions"],
+                encounter_id=encounter_id,
+            )
+            bank = {q.key: q.text for q in await self._load_questions_ordered()}
+            screened = screen_followups(res.get("followups") or [], bank)
+            chosen = next((p for p in screened if p["decision"] == "accept"), None)
+            if chosen is None:
+                return None
+            ai_q = Question(
+                key=f"{prefix}{chosen.get('socrates_dimension') or 'detail'}",
+                label="AI Clarification",
+                section="Symptoms",
+                text=chosen["text"],
+                placeholder="Provide additional details if applicable...",
+                help="Optional follow-up question (SOCRATES). AI-proposed and safety-filtered.",
+                answer_type="text",
+                group="symptoms",
+                order=2,
+                is_required=False,
+                because="SOCRATES Clarification (AI-proposed, safety-filtered)",
+            )
+            self.db.add(ai_q)
+            await self.db.commit()
+            await self.db.refresh(ai_q)
+            return ai_q
+        except Exception:
+            await self.db.rollback()
+            return None
+
 
     async def _get_answered_map(self, encounter_id: int) -> Dict[str, str]:
         responses = (

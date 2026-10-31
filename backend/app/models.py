@@ -346,6 +346,7 @@ class DocumentEntity(Base):
     grounded = Column(Boolean, default=True, nullable=False)
     confidence = Column(Float, nullable=True)
     provenance = Column(String(50), default="document_extracted_unverified", nullable=False)
+    review_status = Column(String(50), nullable=True)  # grounded | needs_review | read_from_handwriting_verify | regex_disagreement
     created_at = Column(DateTime(timezone=True), default=_now)
 
     document = relationship("Document", back_populates="entities")
@@ -425,6 +426,8 @@ class LLMJob(Base):
     status = Column(Enum(JobStatus), default=JobStatus.pending, nullable=False)
     progress = Column(Float, default=0.0, nullable=False)
     error_message = Column(Text, nullable=True)
+    usage = Column(JSON, nullable=True)   # per-call provider/model/tokens/latency (no clinical text)
+    notes = Column(JSON, nullable=True)   # validation and degradation notes
     started_at = Column(DateTime(timezone=True), nullable=True)
     finished_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=_now)

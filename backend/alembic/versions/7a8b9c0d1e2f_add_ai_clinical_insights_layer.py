@@ -1,7 +1,7 @@
 """add_ai_clinical_insights_layer
 
 Revision ID: 7a8b9c0d1e2f
-Revises: 1cc939388310
+Revises: 2fa2d5d870dc
 Create Date: 2026-10-31 00:30:00.000000
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '7a8b9c0d1e2f'
-down_revision: Union[str, None] = '1cc939388310'
+down_revision: Union[str, None] = '2fa2d5d870dc'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

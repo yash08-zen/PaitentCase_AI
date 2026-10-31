@@ -32,7 +32,7 @@ async def sample_encounter_with_patient():
 
 @pytest.mark.asyncio
 async def test_handwriting_local_mode_safety_guard(sample_encounter_with_patient, tmp_path):
-    """In local/mock mode, low-confidence handwriting gets status 'needs_review' with manual transcription notice."""
+    """In local mode (no vision), low-confidence handwriting gets 'needs_review' and nothing is sent anywhere."""
     fake_img = tmp_path / "handwritten_rx.jpg"
     fake_img.write_bytes(b"\xFF\xD8\xFF\xE0" + b"\x00" * 100)
 
@@ -50,9 +50,12 @@ async def test_handwriting_local_mode_safety_guard(sample_encounter_with_patient
         await db.refresh(doc)
         doc_id = doc.id
 
-    with patch("app.services.document_processing.run_ocr_sync") as mock_ocr:
-        mock_ocr.return_value = ("scrawl", {}, 0.35, 0.5, "needs_review")
-        await _process_worker(doc_id)
+    with patch.object(settings, "LLM_PROVIDER", "local"):
+        with patch("app.services.llm.manager.llm_service.generate", new_callable=AsyncMock) as mock_gen:
+            with patch("app.services.document_processing.run_ocr_sync") as mock_ocr:
+                mock_ocr.return_value = ("scrawl", {}, 0.35, 0.5, "needs_review")
+                await _process_worker(doc_id)
+            assert mock_gen.call_count == 0
 
     async with AsyncSessionLocal() as db:
         updated_doc = await db.get(Document, doc_id)
@@ -64,7 +67,7 @@ async def test_handwriting_local_mode_safety_guard(sample_encounter_with_patient
 
 @pytest.mark.asyncio
 async def test_handwriting_vision_fallback_in_hosted_mode(sample_encounter_with_patient, tmp_path):
-    """When LLM_PROVIDER is hosted, vision model transcribes text and creates grounded DocumentEntity records."""
+    """Hosted mode: the page image goes to the vision model; results are stored unverified with a verify flag."""
     fake_img = tmp_path / "rx_scan.png"
     fake_img.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100)
 
@@ -88,11 +91,13 @@ async def test_handwriting_vision_fallback_in_hosted_mode(sample_encounter_with_
             with patch("app.services.llm.manager.llm_service.generate", new_callable=AsyncMock) as mock_gen:
                 mock_gen.return_value = ({
                     "transcription": "Tab Metformin 500mg BD x 30 days",
-                    "medications": [{"name": "Metformin", "dosage": "500mg", "frequency": "BD"}],
-                    "labs": []
-                }, {})
+                    "medications": [{"name": "Metformin", "dose": "500mg", "frequency": "BD"}],
+                    "lab_rows": [], "illegible_segments": 0,
+                }, {"provider": "hosted", "model_name": "claude-haiku-5-5", "prompt_version": "v", "is_external": True})
                 await _process_worker(doc_id)
-                print("MOCK GEN CALL COUNT:", mock_gen.call_count)
+                kwargs = mock_gen.call_args.kwargs
+                assert kwargs["images"][0]["media_type"] == "image/png"
+                assert kwargs["images"][0]["base64_data"]
 
     async with AsyncSessionLocal() as db:
         updated_doc = await db.get(Document, doc_id)
@@ -106,8 +111,15 @@ async def test_handwriting_vision_fallback_in_hosted_mode(sample_encounter_with_
         )).all()
         assert len(entities) >= 1
         assert entities[0].entity_type == "medication"
-        assert entities[0].grounded is True
+        assert entities[0].grounded is False  # never auto-trusted
         assert entities[0].provenance == "vision_fallback"
+        assert entities[0].review_status == "read_from_handwriting_verify"
+        assert "verify" in updated_doc.extracted_fields["handwriting_notice"]
+
+        from app.models import AuditEvent
+        audit = await db.scalar(select(AuditEvent).where(AuditEvent.action == "LLM_EXTERNAL_CALL",
+                                                         AuditEvent.resource_id == str(doc_id)))
+        assert audit is not None
 
 
 @pytest.mark.asyncio
@@ -151,3 +163,37 @@ async def test_ai_followup_failure_silently_falls_back(sample_encounter_with_pat
                 assert res.question is not None
                 # Silently falls back to the normal next question
                 assert not res.question.key.startswith("ai_followup_")
+
+
+@pytest.mark.asyncio
+async def test_unsafe_ai_followups_are_rejected(sample_encounter_with_patient):
+    """Leading or diagnostic follow-ups never reach the patient; the deterministic flow continues."""
+    from app.services.llm.manager import llm_service
+    llm_service.mock.overrides["followup_questions"] = {"followups": [
+        {"text": "Don't you think this is a heart attack?", "socrates_dimension": "character", "reason": "x"},
+        {"text": "Could this be diabetes?", "socrates_dimension": "associations", "reason": "x"},
+    ]}
+    async with AsyncSessionLocal() as db:
+        engine = AdaptiveEngine(db)
+        await engine.save_response(sample_encounter_with_patient.id, "chief_complaint", "Severe chest tightness")
+        with patch.object(settings, "AI_FOLLOWUPS_ENABLED", True):
+            res = await engine.get_next_question(sample_encounter_with_patient.id)
+        assert not res.question.key.startswith("ai_followup_")
+
+
+@pytest.mark.asyncio
+async def test_ai_followup_is_scoped_to_its_encounter(sample_encounter_with_patient):
+    """An AI follow-up created for one encounter never appears in another encounter's flow."""
+    async with AsyncSessionLocal() as db:
+        engine = AdaptiveEngine(db)
+        await engine.save_response(sample_encounter_with_patient.id, "chief_complaint", "Severe chest tightness")
+        with patch.object(settings, "AI_FOLLOWUPS_ENABLED", True):
+            res = await engine.get_next_question(sample_encounter_with_patient.id)
+        assert res.question.key.startswith(f"ai_followup_{sample_encounter_with_patient.id}_")
+
+        other = Encounter(patient_id=sample_encounter_with_patient.patient_id, consent_given=True)
+        db.add(other)
+        await db.commit()
+        await db.refresh(other)
+        nxt = await AdaptiveEngine(db).get_next_question(other.id)
+        assert not nxt.question.key.startswith("ai_followup_")

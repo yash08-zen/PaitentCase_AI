@@ -44,7 +44,8 @@ def calculate_trend(
     current_val: float,
     previous_date_str: Optional[str] = None,
     current_date_str: Optional[str] = None,
-    test_normalized_name: str = "creatinine"
+    test_normalized_name: str = "creatinine",
+    unit: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Compute delta, percentage, direction, and matched rules for two sequential tests.
@@ -81,9 +82,9 @@ def calculate_trend(
         if target_dir != direction:
             continue
 
-        # Check time window if days_span is known
+        # A windowed rule can only match when the time span is actually known
         max_days = criterion.get("time_window_days")
-        if days_span is not None and max_days is not None and days_span > max_days:
+        if max_days is not None and (days_span is None or days_span > max_days):
             continue
 
         # Check min absolute change
@@ -104,6 +105,9 @@ def calculate_trend(
         "test_name": test_normalized_name,
         "previous_value": previous_val,
         "current_value": current_val,
+        "unit": unit,
+        "previous_date": previous_date_str,
+        "current_date": current_date_str,
         "delta": delta,
         "percent_change": percent_change,
         "direction": direction,
@@ -112,4 +116,44 @@ def calculate_trend(
         "clinical_label": clinical_label,
         "disclaimer": "Thresholds require clinician verification before real use."
     }
+
+
+def series_trends(lab_rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Group flagged lab rows by normalized test and compute the trend from the
+    earliest to the latest dated value. Rows without a parseable date are not
+    ordered by guesswork: a series with any undated row is reported with an
+    unknown time span, so no time-windowed rule can match it.
+    """
+    by_test: Dict[str, List[Dict[str, Any]]] = {}
+    for row in lab_rows:
+        by_test.setdefault(row["normalized_test"], []).append(row)
+
+    trends: List[Dict[str, Any]] = []
+    for test_key, rows in by_test.items():
+        if len(rows) < 2:
+            continue
+        units = {r.get("unit") for r in rows}
+        if len(units) > 1:
+            # Mixed, unconvertible units: comparing them would be meaningless
+            continue
+        dated = [(parse_date(r.get("test_date")), r) for r in rows]
+        if all(d for d, _ in dated):
+            dated.sort(key=lambda x: x[0])
+            first, last = dated[0][1], dated[-1][1]
+            first_date, last_date = first.get("test_date"), last.get("test_date")
+        else:
+            first, last = rows[0], rows[-1]
+            first_date = last_date = None
+        trend = calculate_trend(
+            previous_val=first["value"],
+            current_val=last["value"],
+            previous_date_str=first_date,
+            current_date_str=last_date,
+            test_normalized_name=test_key,
+            unit=first.get("unit"),
+        )
+        trend["source_lab_rows"] = [r.get("source_span") for r in (first, last)]
+        trends.append(trend)
+    return trends
 

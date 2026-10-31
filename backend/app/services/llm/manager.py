@@ -2,58 +2,94 @@
 services/llm/manager.py
 -----------------------
 LLM Service Manager coordinating provider dispatch (hosted, local, mock),
-de-identification scrubbing for external calls, prompt versioning, structured audit
-logging, and graceful fallback when LLMs are offline or unavailable.
+de-identification before external calls, prompt versioning, per-call
+logging and graceful degradation when the LLM is unavailable.
+
+Per-call log line: provider, model, prompt version, task, encounter id,
+token usage and latency. Clinical text and keys are never logged.
 """
-import time
 import logging
-from typing import Dict, Any, Optional, List, Tuple
+import time
+from typing import Any, Dict, List, Optional, Tuple
 
 from app.core.config import settings
-from app.services.llm.interface import BaseLLMProvider, LLMUnavailableError, LLMProviderError
-from app.services.llm.mock_provider import MockLLMProvider
 from app.services.llm.hosted_provider import HostedLLMProvider
+from app.services.llm.interface import BaseLLMProvider, LLMUnavailableError
 from app.services.llm.local_provider import LocalLLMProvider
+from app.services.llm.mock_provider import MockLLMProvider
+from app.services.llm.prompts import PROMPT_VERSION
 from app.services.llm.scrubber import TextScrubber
 
 logger = logging.getLogger("app.services.llm.manager")
 
-CURRENT_PROMPT_VERSION = "2026.10.clinical-insights-v1"
+CURRENT_PROMPT_VERSION = PROMPT_VERSION
+
+HOSTED_CONSENT_LINE = (
+    "Hosted AI mode sends de-identified clinical text (and page images for the handwriting "
+    "path) to the configured provider. Use synthetic data only."
+)
 
 
 class LLMServiceManager:
     """Central entry point for all AI Clinical Insights generation."""
 
     def __init__(self):
-        self.provider_mode = settings.LLM_PROVIDER
         self._mock = MockLLMProvider()
         self._hosted = HostedLLMProvider()
         self._local = LocalLLMProvider()
 
-    def get_provider(self) -> BaseLLMProvider:
-        """Select active provider based on configuration."""
+    @property
+    def mode(self) -> str:
         mode = (settings.LLM_PROVIDER or "hosted").lower()
-        if mode == "mock":
-            return self._mock
-        elif mode == "local":
-            return self._local
-        elif mode == "hosted":
-            return self._hosted
+        return mode if mode in ("hosted", "local", "mock") else "mock"
+
+    @property
+    def mock(self) -> MockLLMProvider:
         return self._mock
 
-    async def get_status(self) -> Dict[str, Any]:
-        """Expose operational metadata and active provider health."""
-        provider = self.get_provider()
-        health = await provider.health_check()
+    def get_provider(self) -> BaseLLMProvider:
+        return {"mock": self._mock, "local": self._local, "hosted": self._hosted}[self.mode]
 
+    @property
+    def is_external(self) -> bool:
+        return self.mode == "hosted"
+
+    @property
+    def vision_available(self) -> bool:
+        return self.mode in ("hosted", "mock")
+
+    async def is_available(self) -> bool:
+        health = await self.get_provider().health_check()
+        return bool(health.get("available", health.get("status") == "healthy"))
+
+    def model_for(self, task: str) -> str:
+        provider = self.get_provider()
+        if isinstance(provider, HostedLLMProvider):
+            return provider.select_model(task)
+        return getattr(provider, "model_name", "unknown")
+
+    async def get_status(self) -> Dict[str, Any]:
+        """Operational metadata and active provider health (never the key)."""
+        health = await self.get_provider().health_check()
+        available = bool(health.get("available", health.get("status") == "healthy"))
         return {
-            "active_mode": settings.LLM_PROVIDER,
+            "active_mode": self.mode,
+            "processing_label": {"hosted": "hosted", "local": "local", "mock": "mock (offline fixtures)"}[self.mode],
+            "available": available,
+            "state": "available" if available else "llm_unavailable",
+            "capability": "reduced" if self.mode == "local" else "full",
+            "vision_available": self.vision_available and available,
+            "summary_languages": ["en", "hi", "mr"] if self.mode == "hosted" else ["en"],
             "prompt_version": CURRENT_PROMPT_VERSION,
-            "air_gapped_compatible": (settings.LLM_PROVIDER in ("local", "mock")),
+            "air_gapped_compatible": self.mode in ("local", "mock"),
+            "external_calls": self.is_external,
             "followups_enabled": settings.AI_FOLLOWUPS_ENABLED,
             "provider_health": health,
             "synthetic_data_notice": "Research prototype configured for synthetic evaluation only. No real PHI.",
-            "consent_statement": "Clinician-assisted AI review. Output is unverified until accepted by a licensed practitioner."
+            "consent_statement": (
+                HOSTED_CONSENT_LINE if self.is_external else
+                "Clinician-assisted AI review. Output is unverified until accepted by a licensed practitioner."
+            ),
         }
 
     async def generate(
@@ -69,64 +105,68 @@ class LLMServiceManager:
         patient_identifiers: Optional[List[str]] = None,
     ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """
-        Execute structured LLM inference with automated scrubbing and provenance tracking.
-        Returns:
-            (validated_output, metadata_dict)
+        Run one structured LLM call.
+        Returns (validated_output, metadata). metadata carries provider, model,
+        prompt version, token usage, latency and whether the call left the machine.
+        Raises LLMUnavailableError when the provider cannot be reached.
         """
         provider = self.get_provider()
-        is_external = (settings.LLM_PROVIDER == "hosted")
+        is_external = self.is_external
 
-        token_map = {}
-        scrubbed_content = user_content
-
-        # Enforce patient de-identification before ANY external outbound call
+        token_map: Dict[str, str] = {}
+        content = user_content
         if is_external:
-            scrubber = TextScrubber(patient_name, patient_identifiers)
-            scrubbed_content, token_map = scrubber.scrub(user_content)
+            content, token_map = TextScrubber(patient_name, patient_identifiers).scrub(user_content)
 
-        start_time = time.perf_counter()
-
+        start = time.perf_counter()
         try:
-            raw_result = await provider.generate(
+            raw = await provider.generate(
                 task=task,
                 system_prompt=system_prompt,
-                user_content=scrubbed_content,
+                user_content=content,
                 json_schema=json_schema,
                 images=images,
                 encounter_id=encounter_id,
             )
-            elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
-
-            # Re-attach identity if external call used token mapping
-            final_result = raw_result
-            if token_map:
-                final_result = self._deep_reattach(raw_result, token_map)
-
-            metadata = {
-                "provider": settings.LLM_PROVIDER,
-                "model_name": getattr(provider, "model_name", "claude-family" if is_external else "unknown"),
-                "prompt_version": CURRENT_PROMPT_VERSION,
-                "latency_ms": elapsed_ms,
-                "deidentified": bool(token_map),
-                "is_external": is_external,
-            }
-
-            return final_result, metadata
-
-        except LLMUnavailableError as unavail_err:
-            logger.warning(f"LLM provider unavailable: {unavail_err}")
+        except LLMUnavailableError:
+            logger.warning(
+                "[LLM call] provider=%s task=%s encounter_id=%s status=unavailable",
+                self.mode, task, encounter_id,
+            )
             raise
+        latency_ms = round((time.perf_counter() - start) * 1000, 2)
+
+        usage = raw.pop("_usage", None) or {}
+        result = self._deep_reattach(raw, token_map) if token_map else raw
+        metadata = {
+            "provider": self.mode,
+            "task": task,
+            "model_name": usage.get("model") or self.model_for(task),
+            "prompt_version": CURRENT_PROMPT_VERSION,
+            "latency_ms": latency_ms,
+            "input_tokens": int(usage.get("input_tokens", 0) or 0),
+            "output_tokens": int(usage.get("output_tokens", 0) or 0),
+            "deidentified": bool(token_map) or is_external,
+            "is_external": is_external,
+            "encounter_id": encounter_id,
+        }
+        logger.info(
+            "[LLM call] provider=%s model=%s prompt_version=%s task=%s encounter_id=%s "
+            "tokens_in=%s tokens_out=%s latency_ms=%s",
+            metadata["provider"], metadata["model_name"], CURRENT_PROMPT_VERSION, task,
+            encounter_id, metadata["input_tokens"], metadata["output_tokens"], latency_ms,
+        )
+        return result, metadata
 
     def _deep_reattach(self, obj: Any, token_map: Dict[str, str]) -> Any:
-        """Recursively restore scrubbed tokens across nested dictionary/list structures."""
+        """Recursively restore scrubbed tokens across nested structures."""
         if isinstance(obj, str):
             return TextScrubber.reattach(obj, token_map)
-        elif isinstance(obj, dict):
+        if isinstance(obj, dict):
             return {k: self._deep_reattach(v, token_map) for k, v in obj.items()}
-        elif isinstance(obj, list):
+        if isinstance(obj, list):
             return [self._deep_reattach(item, token_map) for item in obj]
         return obj
 
 
 llm_service = LLMServiceManager()
-

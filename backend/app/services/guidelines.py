@@ -1,156 +1,159 @@
 """
 services/guidelines.py
 ----------------------
-Local Guideline Library and Evidence Retrieval Service.
-Implements the core safety rule:
-  The LLM must NEVER recall drug doses from memory.
-  Doses may be displayed ONLY if directly quoted from a retrieved guideline passage,
-  accompanied by full source citation.
-  All sample entries are explicitly labeled: 'SAMPLE – replace with verified source'.
+Local guideline library with SQLite FTS5 retrieval.
+
+Core safety rule: the LLM never recalls doses from memory. A dose may be shown
+only when quoted verbatim from a retrieved passage, with its citation.
+
+Sample passages live in config/guidelines_sample.json and are all labelled
+'SAMPLE – replace with verified source'. They are not attributed to any real
+publication. Load verified sources with scripts/ingest_guidelines.py.
 """
+import json
+import os
 import re
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List
+
+from sqlalchemy import or_, select, text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_
 
 from app.models import GuidelinePassage
 
-SAMPLE_GUIDELINES = [
-    {
-        "source": "Standard Treatment Workflow Guidelines (SAMPLE – replace with verified source)",
-        "version_date": "2026-01-15",
-        "condition_or_topic": "Type 2 Diabetes Mellitus",
-        "section": "Section 4.1: Initial Pharmacological Management",
-        "passage_text": (
-            "In adults with newly diagnosed Type 2 Diabetes Mellitus without symptomatic hyperglycemia, "
-            "metformin is recommended as the initial first-line oral therapy provided renal function is preserved (eGFR >= 30 mL/min). "
-            "Initial dosing: Metformin 500 mg orally once or twice daily with meals, titrating gradually up to 1000 mg twice daily. "
-            "Contraindications: Severe renal impairment (eGFR < 30 mL/min/1.73m2), metabolic acidosis, or severe liver dysfunction. "
-            "SAMPLE – replace with verified source."
-        ),
-        "citations": ["Standard Treatment Workflow Guidelines (SAMPLE – replace with verified source), Sec 4.1"],
-        "is_sample": True
-    },
-    {
-        "source": "Standard Hypertension Management Protocol (SAMPLE – replace with verified source)",
-        "version_date": "2026-02-01",
-        "condition_or_topic": "Essential Hypertension",
-        "section": "Section 3.2: First-Line Monotherapy",
-        "passage_text": (
-            "For non-black adult patients with confirmed Stage 1 or Stage 2 Essential Hypertension without compelling contraindications, "
-            "first-line agents include ACE inhibitors, ARBs, or dihydropyridine calcium channel blockers. "
-            "Initial dosing: Amlodipine 5 mg orally once daily, titrating to 10 mg daily as clinically indicated, or "
-            "Telmisartan 40 mg orally once daily with blood pressure reassessment at 4 weeks. "
-            "SAMPLE – replace with verified source."
-        ),
-        "citations": ["Standard Hypertension Protocol (SAMPLE – replace with verified source), Sec 3.2"],
-        "is_sample": True
-    },
-    {
-        "source": "Adult Community-Acquired Infection Guidelines (SAMPLE – replace with verified source)",
-        "version_date": "2026-03-10",
-        "condition_or_topic": "Community-Acquired Pneumonia",
-        "section": "Section 2.3: Outpatient Empirical Therapy",
-        "passage_text": (
-            "In low-severity community-acquired pneumonia (CURB-65 score 0–1) without comorbidities, "
-            "first-line empirical therapy is Amoxicillin 500 mg orally three times daily for 5 days. "
-            "In patients with penicillin hypersensitivity or atypical coverage requirements, Azithromycin 500 mg on day 1 followed by 250 mg once daily on days 2–5. "
-            "SAMPLE – replace with verified source."
-        ),
-        "citations": ["Adult Infection Guidelines (SAMPLE – replace with verified source), Sec 2.3"],
-        "is_sample": True
-    },
-    {
-        "source": "Dyslipidemia Primary Prevention Guidelines (SAMPLE – replace with verified source)",
-        "version_date": "2026-01-20",
-        "condition_or_topic": "Dyslipidemia",
-        "section": "Section 5.1: Statin Therapy",
-        "passage_text": (
-            "Moderate-intensity statin therapy is indicated for patients with documented atherosclerotic cardiovascular disease or diabetes aged 40–75. "
-            "Initial dosing: Atorvastatin 20 mg orally once daily taken in the evening, with lipid panel reassessment in 8–12 weeks. "
-            "Contraindications: Active liver disease, unexplained persistent elevation of serum transaminases, pregnancy. "
-            "SAMPLE – replace with verified source."
-        ),
-        "citations": ["Dyslipidemia Guidelines (SAMPLE – replace with verified source), Sec 5.1"],
-        "is_sample": True
-    }
-]
+SAMPLE_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "config", "guidelines_sample.json")
+SAMPLE_LABEL = "SAMPLE – replace with verified source"
+FTS_TABLE = "guideline_passages_fts"
+
+_STOPWORDS = {"the", "and", "with", "for", "from", "patient", "has", "have", "not", "are", "was"}
 
 
-async def seed_guideline_passages(db: AsyncSession) -> int:
-    """Seed sample guidelines into database if empty (idempotent)."""
-    count = await db.scalar(select(GuidelinePassage.id).limit(1))
-    if count is not None:
-        return 0
+def load_passages_file(path: str) -> List[Dict[str, Any]]:
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    passages = data["passages"] if isinstance(data, dict) else data
+    required = ("source", "version_date", "condition_or_topic", "section", "passage_text")
+    for p in passages:
+        missing = [k for k in required if not p.get(k)]
+        if missing:
+            raise ValueError(f"Guideline passage missing fields {missing}: {p.get('source')}")
+    return passages
 
-    inserted = 0
-    for g in SAMPLE_GUIDELINES:
-        obj = GuidelinePassage(
+
+async def ensure_fts(db: AsyncSession) -> bool:
+    """Create and repopulate the FTS5 index. Returns False if FTS5 is unavailable."""
+    try:
+        await db.execute(text(
+            f"CREATE VIRTUAL TABLE IF NOT EXISTS {FTS_TABLE} "
+            "USING fts5(passage_id UNINDEXED, topic, section, passage_text)"
+        ))
+        await db.execute(text(f"DELETE FROM {FTS_TABLE}"))
+        await db.execute(text(
+            f"INSERT INTO {FTS_TABLE} (passage_id, topic, section, passage_text) "
+            "SELECT id, condition_or_topic, section, passage_text FROM guideline_passages"
+        ))
+        await db.commit()
+        return True
+    except OperationalError:
+        await db.rollback()
+        return False
+
+
+async def ingest_passages(db: AsyncSession, passages: List[Dict[str, Any]], *, replace: bool = False) -> int:
+    """Insert passages (optionally replacing the library) and rebuild the FTS index."""
+    if replace:
+        for row in (await db.scalars(select(GuidelinePassage))).all():
+            await db.delete(row)
+    for g in passages:
+        db.add(GuidelinePassage(
             source=g["source"],
             version_date=g["version_date"],
             condition_or_topic=g["condition_or_topic"],
             section=g["section"],
             passage_text=g["passage_text"],
-            citations=g["citations"],
-            is_sample=g["is_sample"]
-        )
-        db.add(obj)
-        inserted += 1
+            citations=g.get("citations") or [],
+            is_sample=bool(g.get("is_sample", False)),
+        ))
     await db.commit()
-    return inserted
+    await ensure_fts(db)
+    return len(passages)
 
 
-async def search_guidelines(
-    query_text: str,
-    db: AsyncSession,
-    limit: int = 3
-) -> List[Dict[str, Any]]:
-    """
-    Search guideline passages by keywords matching condition_or_topic or text.
-    """
-    if not query_text:
-        return []
+async def seed_guideline_passages(db: AsyncSession) -> int:
+    """Seed the sample library if empty (idempotent)."""
+    exists = await db.scalar(select(GuidelinePassage.id).limit(1))
+    if exists is not None:
+        return 0
+    passages = load_passages_file(SAMPLE_PATH)
+    for p in passages:
+        p["is_sample"] = True
+    return await ingest_passages(db, passages)
 
-    tokens = [t.strip().lower() for t in re.split(r"[\s,;]+", query_text) if len(t.strip()) > 2]
+
+def _to_dict(r: GuidelinePassage) -> Dict[str, Any]:
+    return {
+        "id": r.id,
+        "source": r.source,
+        "version_date": r.version_date,
+        "condition_or_topic": r.condition_or_topic,
+        "section": r.section,
+        "passage_text": r.passage_text,
+        "citations": r.citations or [],
+        "is_sample": r.is_sample,
+    }
+
+
+def _query_tokens(query_text: str) -> List[str]:
+    tokens = [t.lower() for t in re.findall(r"[A-Za-z][A-Za-z0-9-]{2,}", query_text or "")]
+    seen: List[str] = []
+    for t in tokens:
+        if t not in _STOPWORDS and t not in seen:
+            seen.append(t)
+    return seen[:12]
+
+
+async def search_guidelines(query_text: str, db: AsyncSession, limit: int = 3) -> List[Dict[str, Any]]:
+    """Retrieve passages by FTS5 bm25 ranking; falls back to LIKE if FTS5 is unavailable."""
+    tokens = _query_tokens(query_text)
     if not tokens:
         return []
 
-    # Search by topic or passage keywords
+    match = " OR ".join(f'"{t}"' for t in tokens)
+    try:
+        rows = (await db.execute(
+            text(f"SELECT passage_id FROM {FTS_TABLE} WHERE {FTS_TABLE} MATCH :q "
+                 f"ORDER BY bm25({FTS_TABLE}) LIMIT :lim"),
+            {"q": match, "lim": limit},
+        )).all()
+        ids = [int(r[0]) for r in rows]
+        if not ids:
+            return []
+        found = {p.id: p for p in (await db.scalars(
+            select(GuidelinePassage).where(GuidelinePassage.id.in_(ids)))).all()}
+        return [_to_dict(found[i]) for i in ids if i in found]
+    except OperationalError:
+        await db.rollback()
+
     conditions = []
     for tok in tokens[:4]:
-        pattern = f"%{tok}%"
-        conditions.append(GuidelinePassage.condition_or_topic.ilike(pattern))
-        conditions.append(GuidelinePassage.passage_text.ilike(pattern))
-
-    stmt = select(GuidelinePassage).where(or_(*conditions)).limit(limit)
-    rows = (await db.scalars(stmt)).all()
-
-    results = []
-    for r in rows:
-        results.append({
-            "id": r.id,
-            "source": r.source,
-            "version_date": r.version_date,
-            "condition_or_topic": r.condition_or_topic,
-            "section": r.section,
-            "passage_text": r.passage_text,
-            "citations": r.citations or [],
-            "is_sample": r.is_sample,
-        })
-    return results
+        conditions.append(GuidelinePassage.condition_or_topic.ilike(f"%{tok}%"))
+        conditions.append(GuidelinePassage.passage_text.ilike(f"%{tok}%"))
+    rows = (await db.scalars(select(GuidelinePassage).where(or_(*conditions)).limit(limit))).all()
+    return [_to_dict(r) for r in rows]
 
 
 def verify_dose_is_quoted(dose_text: str, passage_text: str) -> bool:
     """
-    Enforces the non-negotiable rule:
-    Doses must be verbatim or normalized substrings of the retrieved passage text.
-    Returns True if dose_text appears in passage_text.
+    A dose is acceptable only as a verbatim (punctuation/case-insensitive)
+    substring of the retrieved passage text.
     """
     if not dose_text or not passage_text:
         return False
+    def clean(s: str) -> str:
+        s = " ".join(re.sub(r"[^\w\s.]", " ", s.lower()).split())
+        s = re.sub(r"\.(?!\d)", " ", s)  # keep decimal points only
+        s = re.sub(r"(\d)\s+(mg|mcg|g|ml|iu|units?)\b", r"\1\2", s)
+        return " ".join(s.split())
 
-    clean_dose = re.sub(r"[^\w\s]", "", dose_text.lower()).strip()
-    clean_passage = re.sub(r"[^\w\s]", "", passage_text.lower()).strip()
-
-    return clean_dose in clean_passage
-
+    clean_dose = clean(dose_text)
+    return bool(clean_dose) and f" {clean_dose} " in f" {clean(passage_text)} "

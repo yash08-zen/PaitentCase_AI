@@ -83,3 +83,16 @@ async def init_db():
                 await conn.execute(text("ALTER TABLE conflicts ADD COLUMN resolved_by INTEGER"))
             if "resolved_at" not in existing_conf_cols:
                 await conn.execute(text("ALTER TABLE conflicts ADD COLUMN resolved_at TIMESTAMP"))
+
+        # SQLite schema auto-migration for the AI layer (mirrors Alembic 8c9d0e1f2a3b)
+        res_jobs = await conn.execute(text("PRAGMA table_info(llm_jobs)"))
+        existing_job_cols = {row[1] for row in res_jobs.fetchall()}
+        if existing_job_cols:
+            if "usage" not in existing_job_cols:
+                await conn.execute(text("ALTER TABLE llm_jobs ADD COLUMN usage JSON"))
+            if "notes" not in existing_job_cols:
+                await conn.execute(text("ALTER TABLE llm_jobs ADD COLUMN notes JSON"))
+        res_ent = await conn.execute(text("PRAGMA table_info(document_entities)"))
+        existing_ent_cols = {row[1] for row in res_ent.fetchall()}
+        if existing_ent_cols and "review_status" not in existing_ent_cols:
+            await conn.execute(text("ALTER TABLE document_entities ADD COLUMN review_status VARCHAR(50)"))
