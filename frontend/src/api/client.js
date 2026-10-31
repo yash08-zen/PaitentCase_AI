@@ -724,11 +724,14 @@ export class ApiClient {
   // --- AI Clinical Insights (Doctor Only) ---
 
   /**
-   * Run end-to-end AI clinical analysis pipeline for an encounter
+   * Queue the AI analysis background job for an encounter (poll getAIAnalysis for status)
    * @param {number|string} encounterId
+   * @param {Object} [opts]
+   * @param {"en"|"hi"|"mr"} [opts.summaryLanguage] physician-facing summary language
    */
-  async runAIAnalysis(encounterId) {
-    return this.post(`/api/analysis/${encounterId}/run`, {});
+  async runAIAnalysis(encounterId, { summaryLanguage } = {}) {
+    const qs = summaryLanguage ? `?summary_language=${encodeURIComponent(summaryLanguage)}` : "";
+    return this.post(`/api/analysis/${encounterId}/run${qs}`, {});
   }
 
   /**

@@ -144,6 +144,13 @@ export default function Dashboard({ go }) {
                   </p>
                 </div>
                 <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  {enc.urgency && (
+                    <span title={(enc.priority_alerts || []).join("\n")}>
+                      <Tag kind="bad">
+                        {enc.urgency === "EMERGENCY" ? t("urgencyEmergency") : t("urgencyUrgent")}
+                      </Tag>
+                    </span>
+                  )}
                   <Tag kind={enc.status === "reviewed" ? "ver" : "warn"}>
                     {enc.status === "reviewed" ? t("reviewed") : t("stNeedsReview")}
                   </Tag>

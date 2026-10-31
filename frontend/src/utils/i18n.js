@@ -8,6 +8,7 @@
 
 import { PAGE_TRANSLATIONS } from "./i18n_pages";
 import { INTAKE_TRANSLATIONS } from "./i18n_intake";
+import { AI_TRANSLATIONS } from "./i18n_ai";
 
 export const LANGUAGES = [
   { code: "en", name: "English", native: "English", locale: "en-IN" },
@@ -590,7 +591,7 @@ export function parseServerDate(ts) {
 
 // Merge page-level strings (clinician pages, intake pages, shared UI)
 for (const lang of Object.keys(UI_TRANSLATIONS)) {
-  UI_TRANSLATIONS[lang] = { ...PAGE_TRANSLATIONS[lang], ...INTAKE_TRANSLATIONS[lang], ...UI_TRANSLATIONS[lang] };
+  UI_TRANSLATIONS[lang] = { ...PAGE_TRANSLATIONS[lang], ...INTAKE_TRANSLATIONS[lang], ...UI_TRANSLATIONS[lang], ...AI_TRANSLATIONS[lang] };
 }
 
 /**
