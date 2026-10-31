@@ -62,7 +62,7 @@ export const INTAKE_TRANSLATIONS = {
     // Portal
     uniqueId: "Unique ID",
     whatNext: "What happens next?",
-    whatNextText: "Once you finish answering the questions and uploading any documents, PatientCase AI compiles your answers into a structured clinical summary with verified medication provenance. Your consulting physician will review this entire case file during your visit.",
+    whatNextText: "Your consulting physician will review your structured case summary during consultation.",
 
     // Voice assistant
     playingQuestion: "Playing question...",
@@ -140,7 +140,7 @@ export const INTAKE_TRANSLATIONS = {
 
     uniqueId: "विशिष्ट ID",
     whatNext: "आगे क्या होगा?",
-    whatNextText: "प्रश्नों के उत्तर देने और दस्तावेज़ अपलोड करने के बाद, PatientCase AI आपके उत्तरों को सत्यापित दवा स्रोत के साथ संरचित नैदानिक सारांश में बदल देता है। आपके डॉक्टर मुलाक़ात के दौरान पूरी केस फ़ाइल की समीक्षा करेंगे।",
+    whatNextText: "परामर्श के दौरान आपके डॉक्टर आपके केस सारांश की समीक्षा करेंगे।",
 
     playingQuestion: "प्रश्न चल रहा है...",
     listenQuestion: "प्रश्न सुनें",
@@ -217,7 +217,7 @@ export const INTAKE_TRANSLATIONS = {
 
     uniqueId: "अद्वितीय ID",
     whatNext: "पुढे काय होईल?",
-    whatNextText: "प्रश्नांची उत्तरे देऊन दस्तऐवज अपलोड केल्यानंतर, PatientCase AI तुमची उत्तरे सत्यापित औषध स्रोतासह संरचित वैद्यकीय सारांशात रूपांतरित करते. तुमचे डॉक्टर भेटीदरम्यान संपूर्ण प्रकरण फाइलचे पुनरावलोकन करतील.",
+    whatNextText: "सल्लामसलत दरम्यान तुमचे डॉक्टर तुमच्या केस सारांशाचे पुनरावलोकन करतील.",
 
     playingQuestion: "प्रश्न ऐकवत आहे...",
     listenQuestion: "प्रश्न ऐका",

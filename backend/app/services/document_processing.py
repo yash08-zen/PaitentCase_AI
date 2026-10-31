@@ -182,6 +182,72 @@ async def _process_worker(document_id: int) -> None:
                 run_ocr_sync, doc.stored_path, doc.mime_type
             )
 
+            # Check for Handwriting / Degraded Image Vision Fallback
+            is_image = bool(doc.mime_type and doc.mime_type.startswith("image/"))
+            is_low_conf = (confidence is None or confidence < 0.70) or (not raw_text) or (len(raw_text.strip()) < 5)
+
+            if is_image and is_low_conf:
+                from app.core.config import settings
+                if not fields:
+                    fields = {}
+                if settings.LLM_PROVIDER == "hosted":
+                    try:
+                        import base64
+                        with open(doc.stored_path, "rb") as img_f:
+                            b64_data = base64.b64encode(img_f.read()).decode("utf-8")
+                        from app.services.llm.manager import llm_service
+                        vision_result, _ = await llm_service.generate(
+                            task="handwriting_transcription",
+                            system_prompt=(
+                                "Transcribe the medical handwriting in this image exactly as written. "
+                                "Extract: patient info (if visible), medications with dose/frequency, "
+                                "lab test names and values, doctor's notes, dates. If a word is illegible, "
+                                "write [illegible]. Do NOT guess."
+                            ),
+                            user_content="Transcribe handwritten medical prescription or clinical note image accurately.",
+                            json_schema={
+                                "type": "object",
+                                "properties": {
+                                    "transcription": {"type": "string"},
+                                    "medications": {"type": "array", "items": {"type": "object"}},
+                                    "labs": {"type": "array", "items": {"type": "object"}},
+                                    "notes": {"type": "string"}
+                                },
+                                "required": ["transcription"]
+                            },
+                            images=[{"mime_type": doc.mime_type, "data": b64_data}],
+                            encounter_id=doc.encounter_id
+                        )
+                        if vision_result and vision_result.get("transcription"):
+                            raw_text = vision_result["transcription"]
+                            fields["extraction_method"] = "vision_fallback"
+                            fields["vision_transcription"] = vision_result
+                            status = "needs_review"
+
+                            from app.models import DocumentEntity
+                            for med in vision_result.get("medications", []):
+                                if med.get("name"):
+                                    db.add(DocumentEntity(
+                                        encounter_id=doc.encounter_id,
+                                        document_id=doc.id,
+                                        entity_type="medication",
+                                        raw_text=med["name"],
+                                        value=med,
+                                        grounded=True,
+                                        confidence=0.88,
+                                        provenance="vision_fallback"
+                                    ))
+                    except Exception as vexc:
+                        print(f"[document_processing] Vision fallback failed: {vexc}")
+                        fields["vision_fallback_error"] = str(vexc)
+                        status = "needs_review"
+                else:
+                    status = "needs_review"
+                    fields["handwriting_notice"] = (
+                        "Handwritten document requires doctor manual transcription "
+                        "(local mode does not run large vision models; upgrade to hosted or transcribe manually)"
+                    )
+
             # Re-fetch or update
             doc.extracted_text = raw_text
             doc.extracted_fields = fields

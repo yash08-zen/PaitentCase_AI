@@ -44,6 +44,9 @@ def register_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def global_unhandled_exception_handler(request: Request, exc: Exception):
+        import traceback
+        print(f"500 EXCEPTION on {request.method} {request.url.path}: {exc}", flush=True)
+        traceback.print_exc()
         logger.error(
             f"Unhandled exception on {request.method} {request.url.path}: {exc}",
             exc_info=True,

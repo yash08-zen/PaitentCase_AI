@@ -167,3 +167,15 @@ async def get_benchmarks_summary():
             "non_diagnostic_boundary_enforced": True,
         },
     }
+
+
+from app.services.llm.manager import llm_service
+
+
+@router.get("/llm-status")
+async def get_system_llm_status():
+    """
+    Returns active LLM provider mode, prompt version, health check,
+    and air-gapped / local capabilities.
+    """
+    return await llm_service.get_status()

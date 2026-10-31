@@ -274,24 +274,27 @@ All metrics represent **empirically measured values** verified through automated
 ### 4.2 Backend Setup (FastAPI)
 Open terminal 1:
 ```powershell
-cd "d:\Projects\New PatientCase AI\backend"
+cd backend
 
-# 1. Activate virtual environment
+# 1. Create virtual environment with Python 3.12 (first time only)
+py -3.12 -m venv .venv312
+
+# 2. Activate virtual environment
 .\.venv312\Scripts\Activate.ps1
 
-# 2. Install dependencies (first time only)
+# 3. Install dependencies (first time only)
 pip install -r requirements.txt
 
-# 3. Environment configuration
+# 4. Environment configuration
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 
-# 4. Run database migrations to current schema
+# 5. Run database migrations to current schema
 .\.venv312\Scripts\alembic.exe upgrade head
 
-# 5. Seed synthetic demo accounts & scenarios
+# 6. Seed synthetic demo accounts & scenarios
 .\.venv312\Scripts\python.exe -m app.scripts.seed_demo_e2e
 
-# 6. Start API server
+# 7. Start API server
 .\.venv312\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 - API Base: `http://127.0.0.1:8000`
@@ -302,7 +305,7 @@ if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 ### 4.3 Frontend Setup (React + Vite)
 Open terminal 2:
 ```powershell
-cd "d:\Projects\New PatientCase AI\frontend"
+cd frontend
 
 # 1. Install dependencies
 npm install

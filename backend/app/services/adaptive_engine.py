@@ -48,7 +48,78 @@ class AdaptiveEngine:
 
     async def get_next_question(self, encounter_id: int) -> NextQuestionResponse:
         """Return the next unanswered applicable question for this encounter."""
+        from app.core.config import settings
         answered = await self._get_answered_map(encounter_id)
+
+        # Optional Feature-Flagged AI Follow-Up Question
+        if settings.AI_FOLLOWUPS_ENABLED and "chief_complaint" in answered:
+            has_followup = any(k.startswith(f"ai_followup_{encounter_id}") for k in answered)
+            if not has_followup:
+                cc = str(answered["chief_complaint"]).lower()
+                if any(w in cc for w in ["tightness", "discomfort", "pain", "headache", "fatigue", "fever", "cough"]):
+                    try:
+                        from app.services.llm.manager import llm_service
+                        res, _ = await llm_service.generate(
+                            task="followup_questions",
+                            system_prompt=(
+                                "Generate 1 non-leading follow-up question using the SOCRATES pain/symptom "
+                                "assessment framework. Do NOT suggest diagnoses. Do NOT ask compound questions."
+                            ),
+                            user_content=f"Patient reports chief complaint: {answered['chief_complaint']}",
+                            json_schema={
+                                "type": "object",
+                                "properties": {
+                                    "followups": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "properties": {
+                                                "key": {"type": "string"},
+                                                "text": {"type": "string"},
+                                                "reason": {"type": "string"},
+                                                "group": {"type": "string"}
+                                            },
+                                            "required": ["text"]
+                                        }
+                                    }
+                                },
+                                "required": ["followups"]
+                            },
+                            encounter_id=encounter_id
+                        )
+                        followups = res.get("followups", [])
+                        if followups and followups[0].get("text"):
+                            item = followups[0]
+                            q_key = f"ai_followup_{encounter_id}"
+                            existing_q = await self.db.scalar(select(Question).where(Question.key == q_key))
+                            if not existing_q:
+                                ai_q = Question(
+                                    key=q_key,
+                                    label="AI Clarification",
+                                    section="Symptoms",
+                                    text=item["text"],
+                                    placeholder="Provide additional details if applicable...",
+                                    help="Non-leading clinical follow-up question (SOCRATES framework). Optional.",
+                                    answer_type="text",
+                                    group="symptoms",
+                                    order=2,
+                                    is_required=False,
+                                    because="SOCRATES Clarification"
+                                )
+                                self.db.add(ai_q)
+                                await self.db.commit()
+                                await self.db.refresh(ai_q)
+                                return NextQuestionResponse(
+                                    question=QuestionOut.model_validate(ai_q),
+                                    progress=0.15,
+                                    is_complete=False,
+                                    adaptive_note="AI SOCRATES symptom exploration (optional)",
+                                    answered_count=len(answered),
+                                    total_applicable=len(answered) + 10,
+                                    can_go_back=True,
+                                )
+                    except Exception:
+                        pass
         all_questions = await self._load_questions_ordered()
         applicable = [q for q in all_questions if self._is_applicable(q, answered)]
         answered_count = sum(1 for q in applicable if q.key in answered)

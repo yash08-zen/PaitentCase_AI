@@ -28,7 +28,7 @@ from app.core.security_headers import SecurityHeadersMiddleware
 from app.core.logging_config import RequestLoggingMiddleware
 from app.core.error_handlers import register_error_handlers
 
-from app.routers import auth, patients, encounters, interviews, documents, dashboard, encounters_analysis, conflicts, system, voice
+from app.routers import auth, patients, encounters, interviews, documents, dashboard, encounters_analysis, conflicts, system, voice, ai_analysis
 
 
 # ── Lifespan ──────────────────────────────────────────────────────────────────
@@ -205,6 +205,7 @@ app.include_router(dashboard.router)
 app.include_router(conflicts.router)
 app.include_router(system.router)
 app.include_router(voice.router)
+app.include_router(ai_analysis.router)
 
 
 # ── Root endpoints ────────────────────────────────────────────────────────────

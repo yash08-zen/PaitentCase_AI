@@ -720,6 +720,57 @@ export class ApiClient {
   async getBenchmarksSummary() {
     return this.get("/api/system/benchmarks/summary");
   }
+
+  // --- AI Clinical Insights (Doctor Only) ---
+
+  /**
+   * Run end-to-end AI clinical analysis pipeline for an encounter
+   * @param {number|string} encounterId
+   */
+  async runAIAnalysis(encounterId) {
+    return this.post(`/api/analysis/${encounterId}/run`, {});
+  }
+
+  /**
+   * Retrieve AI insights, labs, trends, and scores for an encounter
+   * @param {number|string} encounterId
+   */
+  async getAIAnalysis(encounterId) {
+    return this.get(`/api/analysis/${encounterId}`);
+  }
+
+  /**
+   * Clinician records Accept / Edit / Reject decision for an AI proposal
+   * @param {number|string} insightId
+   * @param {Object} payload
+   * @param {"accepted"|"edited"|"rejected"} payload.decision
+   * @param {Object} [payload.doctor_edits]
+   * @param {string} [payload.doctor_notes]
+   */
+  async decideAIInsight(insightId, payload) {
+    return this.put(`/api/insights/${insightId}/decision`, payload);
+  }
+
+  /**
+   * List available guideline passages
+   */
+  async getAIGuidelines() {
+    return this.get("/api/analysis/guidelines");
+  }
+
+  /**
+   * Retrieve trend rules configuration
+   */
+  async getAITrendRules() {
+    return this.get("/api/analysis/trend-rules");
+  }
+
+  /**
+   * Retrieve LLM service health and operational status
+   */
+  async getLLMStatus() {
+    return this.get("/api/system/llm-status");
+  }
 }
 
 export const apiClient = new ApiClient();
