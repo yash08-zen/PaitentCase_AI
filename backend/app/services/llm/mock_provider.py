@@ -287,7 +287,8 @@ class MockLLMProvider(BaseLLMProvider):
                 qs.append({"question": f"Can you clarify this point: {c.get('field', '').replace('_', ' ')}?",
                            "reason": c.get("description", ""), "evidence_refs": [c.get("ref", "")]})
             for gap in payload.get("missing") or []:
-                qs.append({"question": f"Can you tell me more about your {gap.replace('_', ' ')}?",
+                topic = re.sub(r"^(has|is)_", "", gap).replace("_", " ")
+                qs.append({"question": f"Can you tell me more about your {topic}?",
                            "reason": "Not answered in the interview (unknown, not negative).",
                            "evidence_refs": [f"missing:{gap}"]})
             return {"questions": qs[:8]}
