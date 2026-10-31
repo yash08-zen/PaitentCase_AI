@@ -191,6 +191,29 @@ function Evidence({ items, title, t }) {
   );
 }
 
+/** Analyzed Conclusion content (shared with the doctor dashboard). */
+export function ConclusionBody({ content, t }) {
+  const c = content || {};
+  return (
+    <div>
+      <p style={{ margin: 0, lineHeight: 1.5 }}>{c.conclusion}</p>
+      {(c.possible_considerations || []).length > 0 && (
+        <div className="small" style={{ marginTop: 6 }}>
+          <b>{t("possibleConsiderationsShort")}:</b>{" "}
+          {c.possible_considerations.map((p) => `${p.name} (${t(`likelihood_${(p.likelihood || "possible").replace(/ /g, "_")}`)})`).join("; ")}
+        </div>
+      )}
+      <Evidence items={c.key_findings} title={t("keyFindings")} t={t} />
+      {(c.recommended_next_steps || []).length > 0 && (
+        <div className="small" style={{ marginTop: 6 }}><b>{t("nextSteps")}:</b> {c.recommended_next_steps.join("; ")}</div>
+      )}
+      {(c.information_gaps || []).length > 0 && (
+        <div className="small soft" style={{ marginTop: 4 }}><b>{t("infoGaps")}:</b> {c.information_gaps.join("; ")}</div>
+      )}
+    </div>
+  );
+}
+
 function Section({ title, badge, children }) {
   return (
     <div className="card">
@@ -240,7 +263,7 @@ export default function AIClinicalInsights({ encounterId, isFinalized, onAcceptS
   // Poll while the background job is pending/running
   useEffect(() => {
     clearTimeout(pollRef.current);
-    if (data && ACTIVE_JOB.includes(data.job_status)) {
+    if (data && (ACTIVE_JOB.includes(data.job_status) || data.analysis_state === "analyzing")) {
       pollRef.current = setTimeout(fetchData, POLL_MS);
     }
     return () => clearTimeout(pollRef.current);
@@ -378,6 +401,7 @@ export default function AIClinicalInsights({ encounterId, isFinalized, onAcceptS
             <p className="small" style={{ margin: "6px 0 0" }} aria-live="polite">
               {running && <Spinner size={12} />} {jobLine}
             </p>
+            <p className="small soft" style={{ margin: "4px 0 0" }}>{t("autoAnalysisNote")}</p>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <label className="small" htmlFor="ai-summary-lang">
@@ -396,7 +420,7 @@ export default function AIClinicalInsights({ encounterId, isFinalized, onAcceptS
               ))}
             </select>
             <button className="btn primary sm" disabled={running || locked} onClick={handleRun}>
-              <Icon n={running ? "reset" : "clip"} size={14} /> {running ? t("runningAnalysis") : t("runAIAnalysis")}
+              <Icon n={running ? "reset" : "clip"} size={14} /> {running ? t("runningAnalysis") : t("rerunAnalysis")}
             </button>
           </div>
         </div>
@@ -416,6 +440,18 @@ export default function AIClinicalInsights({ encounterId, isFinalized, onAcceptS
           </p>
         )}
       </div>
+
+      {/* Analyzed Conclusion (automatic, AI-written, code-verified, doctor-gated) */}
+      <Section title={t("analyzedConclusion")}>
+        <p className="small soft" style={{ marginTop: -6 }}>{t("analyzedConclusionHint")}</p>
+        {data?.analyzed_conclusion ? (
+          <AIItem item={data.analyzed_conclusion} busy={busyId === data.analyzed_conclusion.id} {...itemProps}>
+            <ConclusionBody content={data.analyzed_conclusion.content} t={t} />
+          </AIItem>
+        ) : (
+          <p className="small soft">{t("conclusionPending")}</p>
+        )}
+      </Section>
 
       {/* Urgency banner (rule-based) */}
       <div

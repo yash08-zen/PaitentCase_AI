@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import AsyncSessionLocal, get_db
+from app.database import get_db
 from app.dependencies import require_roles
 from app.engines.med_reconciliation import reconcile_medications
 from app.engines.trend_calculator import load_trend_rules
@@ -27,7 +27,8 @@ from app.models import (
     EncounterStatus, GuidelinePassage, JobStatus, LabResult, LLMJob, Patient, Response, ReviewFlag,
     RiskScore, TrendFlag, User,
 )
-from app.services.clinical_analysis import ClinicalAnalysisService, NO_ANSWERS
+from app.services.auto_analysis import pending_encounters, run_job_serialized
+from app.services.clinical_analysis import NO_ANSWERS
 from app.services.guidelines import SAMPLE_LABEL, seed_guideline_passages
 from app.services.llm.manager import llm_service
 
@@ -55,22 +56,6 @@ class DecisionPayload(BaseModel):
     decision: str = Field(..., description="'accepted' | 'edited' | 'rejected'")
     doctor_edits: Optional[Dict[str, Any]] = None
     doctor_notes: Optional[str] = None
-
-
-async def _run_job(job_id: int, encounter_id: int, summary_language: str, actor: Dict[str, Any]) -> None:
-    """Background worker: own DB session; never raises into the event loop."""
-    async with AsyncSessionLocal() as db:
-        try:
-            await ClinicalAnalysisService.run_analysis(
-                encounter_id, db, job_id=job_id, summary_language=summary_language, actor=actor)
-        except Exception as exc:
-            await db.rollback()
-            job = await db.get(LLMJob, job_id)
-            if job:
-                job.status = JobStatus.failed
-                job.error_message = f"{type(exc).__name__}: {exc}"[:500]
-                job.finished_at = _utcnow()
-                await db.commit()
 
 
 @router.post("/api/analysis/{encounter_id}/run", status_code=status.HTTP_202_ACCEPTED)
@@ -108,8 +93,62 @@ async def run_clinical_analysis(
     await db.commit()
 
     actor = {"id": current_user.id, "username": current_user.username, "role": _role(current_user)}
-    background_tasks.add_task(_run_job, job.id, encounter_id, summary_language, actor)
+    background_tasks.add_task(run_job_serialized, job.id, encounter_id, summary_language, actor)
     return {"status": "queued", "job_id": job.id, "encounter_id": encounter_id, "provider_mode": llm_service.mode}
+
+
+URGENCY_RANK = {"EMERGENCY": 0, "URGENT": 1, "ROUTINE": 2}
+
+
+def _analysis_state(job: Optional[LLMJob], scheduled: bool) -> str:
+    if scheduled or (job and _enum(job.status) in ("pending", "running")):
+        return "analyzing"
+    if not job:
+        return "not_analyzed"
+    return {"completed": "ready", "unavailable": "ai_unavailable", "failed": "failed"}.get(_enum(job.status), "ready")
+
+
+@router.get("/api/analysis/overview")
+async def analysis_overview(
+    limit: int = Query(30, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_roles("doctor", "admin")),
+):
+    """
+    Doctor dashboard feed: the latest automatic analysis for each open case
+    (Analyzed Conclusion, urgency, considerations, state). Doctor/admin only.
+    """
+    encounters = (await db.scalars(
+        select(Encounter).where(Encounter.status != EncounterStatus.reviewed)
+        .order_by(desc(Encounter.updated_at), desc(Encounter.id)).limit(limit))).all()
+    scheduled = pending_encounters()
+    items = []
+    for enc in encounters:
+        patient = await db.get(Patient, enc.patient_id)
+        job = await db.scalar(select(LLMJob).where(LLMJob.encounter_id == enc.id).order_by(desc(LLMJob.id)).limit(1))
+        concl = await db.scalar(select(AIInsight).where(
+            AIInsight.encounter_id == enc.id, AIInsight.insight_type == "analyzed_conclusion",
+            AIInsight.status != AIInsightStatus.rejected).order_by(desc(AIInsight.id)).limit(1))
+        flags = (await db.scalars(select(ReviewFlag.description).where(
+            ReviewFlag.encounter_id == enc.id, ReviewFlag.flag_type == "red_flag"))).all()
+        urgency = "EMERGENCY" if any(f.startswith("[EMERGENCY]") for f in flags) else             "URGENT" if any(f.startswith("[URGENT]") for f in flags) else "ROUTINE"
+        overview = ((job.notes or {}).get("overview") if job else None) or {}
+        items.append({
+            "encounter_id": enc.id,
+            "patient_id": enc.patient_id,
+            "patient_name": patient.full_name if patient else "",
+            "reason_for_visit": enc.chief_complaint,
+            "encounter_status": _enum(enc.status),
+            "analysis_state": _analysis_state(job, enc.id in scheduled),
+            "last_trigger": (job.job_type.split(":", 1)[1] if job and ":" in (job.job_type or "") else "manual") if job else None,
+            "analyzed_at": job.finished_at if job else None,
+            "urgency": urgency,
+            "red_flags": [f.split(":", 1)[0].split("] ", 1)[-1] for f in flags],
+            "conclusion": _insight_out(concl) if concl else None,
+            "overview": overview,
+        })
+    items.sort(key=lambda i: (URGENCY_RANK.get(i["urgency"], 3), i["analysis_state"] != "analyzing"))
+    return {"provider_mode": llm_service.mode, "items": items, "notice": NOTICE}
 
 
 @router.get("/api/analysis/guidelines")
@@ -289,6 +328,10 @@ async def get_clinical_analysis(
         "treatment_reference_status": (job.notes or {}).get("treatment_reference") if job else None,
         "case_summary": (by_type.get("case_summary") or [None])[-1],
         "questions_to_ask": by_type.get("questions_to_ask", []),
+        "analyzed_conclusion": (by_type.get("analyzed_conclusion") or [None])[-1],
+        "overview": ((job.notes or {}).get("overview") if job else None),
+        "analysis_state": _analysis_state(job, encounter_id in pending_encounters()),
+        "last_trigger": (job.job_type.split(":", 1)[1] if ":" in (job.job_type or "") else "manual") if job else None,
         "document_timeline": timeline,
         "is_case_locked": enc.status == EncounterStatus.reviewed,
         "job": {

@@ -165,9 +165,8 @@ async def test_submit_response_and_branching(client, auth_headers):
         ("chief_complaint", "Chest pain"),
         ("symptom_duration", "1–3 days"),
         ("symptom_severity", "7"),
-        ("pain_location", "Left chest"),
+        ("pain_location", "Chest"),
         ("worse_with_activity", "Yes"),
-        ("symptom_frequency", "Constant"),
         ("associated_symptoms", "Shortness of breath"),
         ("has_fever", "No"),
         ("has_chronic_conditions", "Yes"),
@@ -179,10 +178,12 @@ async def test_submit_response_and_branching(client, auth_headers):
             headers=auth_headers,
         )
 
-    r = await client.get(f"/api/interviews/{enc_id}/next-question", headers=auth_headers)
+    r = await client.get(f"/api/interviews/{enc_id}/progress", headers=auth_headers)
     assert r.status_code == 200
-    # chronic_conditions_detail should now be next (condition: has_chronic_conditions contains yes)
-    assert r.json()["question"]["key"] == "chronic_conditions_detail"
+    # chronic_conditions_detail joins the path once has_chronic_conditions is Yes
+    active = [i["key"] for i in r.json()["active_path"]]
+    assert "chronic_conditions_detail" in active
+    assert "chest_symptoms" in active  # chest module from the free-text complaint
 
 
 @pytest.mark.asyncio

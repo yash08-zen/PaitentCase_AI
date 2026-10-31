@@ -8,6 +8,7 @@ branches upon answer modification, manages bidirectional back navigation, and ca
 real-time progress and completion.
 """
 import os
+import re
 import json
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
@@ -16,6 +17,7 @@ from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 
+from app.data.complaint_modules import match_modules
 from app.models import Question, Response, Encounter, EncounterStatus
 from app.schemas import (
     QuestionOut,
@@ -147,10 +149,12 @@ class AdaptiveEngine:
 
         await self.db.flush()
 
-        # Update encounter status if pending
+        # Update encounter status if pending; keep the free-text reason on the encounter
         enc = await self.db.get(Encounter, encounter_id)
         if enc and enc.status == EncounterStatus.pending:
             enc.status = EncounterStatus.in_progress
+        if enc and question_key == "chief_complaint" and answer and answer.strip():
+            enc.chief_complaint = answer.strip()
 
         # Re-evaluate all questions and prune any saved responses that are no longer applicable
         answered = await self._get_answered_map(encounter_id)
@@ -380,10 +384,18 @@ class AdaptiveEngine:
         if not key:
             return True
 
-        val = answered.get(key, "").strip()
-        if not val:
+        raw = answered.get(key, "").strip()
+        if not raw:
             return False
 
+        # Symptom modules matched from the free-text reason for visit
+        if "module" in rule_dict:
+            return rule_dict["module"] in match_modules(raw)
+        if "not_module" in rule_dict:
+            return rule_dict["not_module"] not in match_modules(raw)
+
+        # Localized choices are stored as "हां (Yes)": rules compare the English value
+        val = ", ".join(self._english_choice(part) for part in raw.split(","))
         val_lower = val.lower()
 
         # 1. equals
@@ -412,6 +424,14 @@ class AdaptiveEngine:
 
         return True
 
+    @staticmethod
+    def _english_choice(value: str) -> str:
+        """'हां (Yes)' -> 'Yes'; plain English values are returned unchanged."""
+        m = re.search(r"\(([^()]*)\)\s*$", value.strip())
+        if m and re.search(r"[^\x00-\x7f]", value):
+            return m.group(1).strip()
+        return value.strip()
+
     def _is_applicable(self, question: Question, answered: Dict[str, str]) -> bool:
         """
         Deterministic branch evaluation.
@@ -421,6 +441,8 @@ class AdaptiveEngine:
           3. legacy conditions are all satisfied (if specified and no show_if).
         """
         rules = question.branching_rules
+        if rules and isinstance(rules, dict) and rules.get("retired"):
+            return False
         if rules and isinstance(rules, dict):
             show_if = rules.get("show_if")
             if show_if and isinstance(show_if, dict):

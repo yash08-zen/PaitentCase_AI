@@ -536,3 +536,10 @@ def get_translation_for_question(question_key: str, lang: str = "en") -> Dict[st
         return {}
 
     return q_data.get(lang, q_data.get("en", {}))
+
+
+# Complaint-driven questionnaire (free-text reason + symptom modules) overrides
+from app.data.translations_complaint import COMPLAINT_TRANSLATIONS  # noqa: E402
+
+QUESTION_TRANSLATIONS.update(COMPLAINT_TRANSLATIONS)
+QUESTION_TRANSLATIONS.pop("symptom_frequency", None)

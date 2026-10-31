@@ -293,6 +293,29 @@ class MockLLMProvider(BaseLLMProvider):
                            "evidence_refs": [f"missing:{gap}"]})
             return {"questions": qs[:8]}
 
+        if task == "analyzed_conclusion":
+            cc = next((e for e in catalogue if e["ref"] == "interview:chief_complaint"), None)
+            names = [c["name"] for c in payload.get("possible_considerations") or []]
+            parts = []
+            if cc:
+                parts.append(f"The patient reports: {cc['text']}.")
+            parts.append(f"Rule-based urgency is {payload.get('urgency', 'ROUTINE')}.")
+            if names:
+                parts.append("Possible considerations for the doctor: " + "; ".join(names) + ".")
+            parts.append("These findings need history confirmation and clinical examination.")
+            findings = []
+            for e in catalogue:
+                if e["ref"] == "interview:chief_complaint" or (e["ref"].startswith("lab:") and "flag normal" not in e["text"]):
+                    findings.append({"finding": "Reported or documented finding", "evidence_ref": e["ref"],
+                                     "quote": e["text"][:40]})
+            return {
+                "conclusion": " ".join(parts),
+                "key_findings": findings[:4],
+                "recommended_next_steps": ["Confirm the history with the patient", "Examine the patient",
+                                           "Review any flagged results"],
+                "information_gaps": [f"Not answered: {m.replace('_', ' ')}" for m in payload.get("missing") or []][:5],
+            }
+
         if task == "followup_questions":
             return {"followups": [
                 {"text": "When did this problem first start?", "socrates_dimension": "onset",

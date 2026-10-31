@@ -136,10 +136,10 @@ async def test_e2e_p0_full_clinical_lifecycle(client: AsyncClient, sample_prescr
     )
     assert r3.status_code == 201
 
-    # Answer symptom_frequency (branched for Cough): Daily episodes
+    # Answer symptom_course (generic question for every complaint)
     r4 = await client.post(
         f"/api/interviews/{encounter_id}/responses",
-        json={"question_key": "symptom_frequency", "answer": "Daily episodes"},
+        json={"question_key": "symptom_course", "answer": "Getting worse"},
         headers=staff_headers,
     )
     assert r4.status_code == 201

@@ -37,23 +37,25 @@ async def test_voice_languages_list(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_question_translation_retrieval(client: AsyncClient):
     """Verify localized questions, options, and spoken prompts for English, Hindi, and Marathi."""
-    # English
+    # English: free-text reason for visit (no fixed disease list)
     en_res = await client.get("/api/voice/questions/chief_complaint?lang=en")
     assert en_res.status_code == 200
-    assert "troubling you the most" in en_res.json()["text"]
-    assert "Headache" in en_res.json()["choices"]
+    assert "main reason for your visit" in en_res.json()["text"]
+    assert not en_res.json().get("choices")
 
     # Hindi
     hi_res = await client.get("/api/voice/questions/chief_complaint?lang=hi")
     assert hi_res.status_code == 200
-    assert "तकलीफ" in hi_res.json()["text"]
-    assert any("सिरदर्द" in c for c in hi_res.json()["choices"])
+    assert "कारण" in hi_res.json()["text"]
 
     # Marathi
     mr_res = await client.get("/api/voice/questions/chief_complaint?lang=mr")
     assert mr_res.status_code == 200
-    assert "त्रास" in mr_res.json()["text"]
-    assert any("डोकेदुखी" in c for c in mr_res.json()["choices"])
+    assert "कारणासाठी" in mr_res.json()["text"]
+
+    # Module question choices carry the English value in brackets for branching
+    hi_cough = await client.get("/api/voice/questions/cough_type?lang=hi")
+    assert "सूखी खांसी (Dry cough)" in hi_cough.json()["choices"]
 
 
 @pytest.mark.asyncio

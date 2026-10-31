@@ -64,7 +64,8 @@ def evaluate_red_flags(
     # ── 2. Acute Stroke / Neurological Deficit Red Flag ──
     stroke_triggers = [
         "facial droop", "face drooping", "weakness on one side", "slurred speech",
-        "speech difficulty", "sudden weakness", "arm weakness", "hemiparesis"
+        "speech difficulty", "sudden weakness", "arm weakness", "hemiparesis",
+        "weakness of face, arm or leg", "difficulty speaking"
     ]
     matched_stroke = [s for s in stroke_triggers if _mentioned(answers_text, s)]
     if matched_stroke:
@@ -75,6 +76,32 @@ def evaluate_red_flags(
             "evidence": f"Reported sudden neurological signs: {', '.join(matched_stroke)}.",
             "action": "Immediate stroke code activation, non-contrast head CT, assess onset time window."
         })
+
+    # ── 2b. Symptom-module red flags (complaint-driven questionnaire answers) ──
+    symptom_rules = [
+        ("ALLERGY_ANAPHYLAXIS_RED_FLAG", "EMERGENCY", "Possible severe allergic reaction",
+         ["swelling of lips, face or throat"],
+         "Immediate assessment of airway and breathing; treat as possible anaphylaxis."),
+        ("GI_BLEED_RED_FLAG", "URGENT", "Possible gastrointestinal bleeding",
+         ["blood in vomit or stool", "black stools"],
+         "Urgent clinical review, haemodynamic check and haemoglobin."),
+        ("RESP_HAEMOPTYSIS_RED_FLAG", "URGENT", "Coughing blood reported",
+         ["cough with blood"],
+         "Urgent clinical review and chest assessment."),
+        ("SELF_HARM_RED_FLAG", "URGENT", "Thoughts of self-harm reported",
+         ["thoughts of harming yourself"],
+         "Same-day clinician assessment of safety; do not leave the patient without follow-up."),
+    ]
+    for code, urgency, title, terms, action in symptom_rules:
+        hits = [t for t in terms if _mentioned(answers_text, t)]
+        if hits:
+            alerts.append({"code": code, "urgency": urgency, "title": title,
+                           "evidence": f"Patient reported: {', '.join(hits)}.", "action": action})
+    if str(interview_answers.get("breathlessness_level", "")).lower().find("even at rest") >= 0:
+        alerts.append({"code": "RESP_BREATHLESS_AT_REST", "urgency": "URGENT",
+                       "title": "Breathless at rest",
+                       "evidence": "Patient reported breathlessness even at rest.",
+                       "action": "Urgent assessment including oxygen saturation."})
 
     # ── 3. Critical Physiological Vitals ──
     vitals = vitals or {}

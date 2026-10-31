@@ -12,6 +12,7 @@ os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["APP_SECRET_KEY"] = "test-secret-key-for-unit-tests"
 os.environ["UPLOAD_DIR"] = "./test_uploads"
 os.environ["LLM_PROVIDER"] = "mock"
+os.environ["AUTO_ANALYSIS_ENABLED"] = "false"  # tests that need it switch it on explicitly
 
 from app.main import app, seed_questions, ensure_default_admin
 from app.database import engine

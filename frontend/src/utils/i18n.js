@@ -9,6 +9,8 @@
 import { PAGE_TRANSLATIONS } from "./i18n_pages";
 import { INTAKE_TRANSLATIONS } from "./i18n_intake";
 import { AI_TRANSLATIONS } from "./i18n_ai";
+import { LOCAL_QUESTION_TRANSLATIONS } from "./i18n_questions";
+import { VISIT_TRANSLATIONS } from "./i18n_visit";
 
 export const LANGUAGES = [
   { code: "en", name: "English", native: "English", locale: "en-IN" },
@@ -591,133 +593,11 @@ export function parseServerDate(ts) {
 
 // Merge page-level strings (clinician pages, intake pages, shared UI)
 for (const lang of Object.keys(UI_TRANSLATIONS)) {
-  UI_TRANSLATIONS[lang] = { ...PAGE_TRANSLATIONS[lang], ...INTAKE_TRANSLATIONS[lang], ...UI_TRANSLATIONS[lang], ...AI_TRANSLATIONS[lang] };
+  UI_TRANSLATIONS[lang] = { ...PAGE_TRANSLATIONS[lang], ...INTAKE_TRANSLATIONS[lang], ...UI_TRANSLATIONS[lang], ...AI_TRANSLATIONS[lang], ...VISIT_TRANSLATIONS[lang] };
 }
 
-/**
- * Question fallback dictionary to ensure instant zero-latency multilingual rendering
- */
-export const LOCAL_QUESTION_TRANSLATIONS = {
-  chief_complaint: {
-    en: {
-      text: "What is troubling you the most today?",
-      help: "Choose the closest match or select Other to describe your symptom.",
-      choices: ["Headache", "Abdominal pain", "Chest discomfort", "Fever", "Cough", "Back pain", "Other"],
-    },
-    hi: {
-      text: "आज आपको सबसे ज्यादा क्या परेशानी या तकलीफ हो रही है?",
-      help: "सबसे मिलता-जुलता लक्षण चुनें या अपना लक्षण बताएं।",
-      choices: ["सिरदर्द (Headache)", "पेट दर्द (Abdominal pain)", "सीने में बेचैनी (Chest discomfort)", "बुखार (Fever)", "खांसी (Cough)", "पीठ दर्द (Back pain)", "अन्य (Other)"],
-    },
-    mr: {
-      text: "आज तुम्हाला सर्वात जास्त काय त्रास किंवा समस्या जाणवत आहे?",
-      help: "सर्वात जवळचा पर्याय निवडा किंवा आपले लक्षण सांगा.",
-      choices: ["डोकेदुखी (Headache)", "पोटदुखी (Abdominal pain)", "छातीत अस्वस्थता (Chest discomfort)", "ताप (Fever)", "खोकला (Cough)", "पाठदुखी (Back pain)", "इतर (Other)"],
-    },
-  },
-  symptom_duration: {
-    en: {
-      text: "How long have you had this problem?",
-      help: "Approximate duration helps determine acute vs chronic presentation.",
-      choices: ["Less than a day", "1 to 3 days", "4 to 7 days", "More than a week", "Months or longer"],
-    },
-    hi: {
-      text: "यह समस्या आपको कितने समय से है?",
-      help: "अनुमानित समय से यह समझने में मदद मिलती है कि बीमारी नई है या पुरानी।",
-      choices: ["एक दिन से कम (Less than a day)", "1 से 3 दिन (1 to 3 days)", "4 से 7 दिन (4 to 7 days)", "एक सप्ताह से अधिक (More than a week)", "महीनों या उससे अधिक (Months or longer)"],
-    },
-    mr: {
-      text: "हा त्रास तुम्हाला किती दिवसांपासून किंवा वेळेपासून आहे?",
-      help: "अंदाजे कालावधीमुळे आजाराचे स्वरूप समजण्यास मदत होते.",
-      choices: ["एका दिवसापेक्षा कमी (Less than a day)", "१ ते ३ दिवस (1 to 3 days)", "४ ते ७ दिवस (4 to 7 days)", "आठवड्यापेक्षा जास्त (More than a week)", "काही महिने किंवा अधिक (Months or longer)"],
-    },
-  },
-  symptom_severity: {
-    en: {
-      text: "How severe is your discomfort right now?",
-      help: "1 is very mild, 10 is the worst pain imaginable.",
-      choices: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
-    },
-    hi: {
-      text: "इस समय आपकी तकलीफ कितनी गंभीर है?",
-      help: "1 बहुत हल्का है, 10 असहनीय दर्द है।",
-      choices: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
-    },
-    mr: {
-      text: "सध्या तुमचा त्रास किती तीव्र आहे?",
-      help: "१ म्हणजे अगदी सौम्य, १० म्हणजे असह्य वेदना.",
-      choices: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
-    },
-  },
-  pain_location: {
-    en: {
-      text: "Where exactly is the pain or discomfort located?",
-      help: "Specific anatomical location provides key clinical context.",
-      choices: ["Upper abdomen", "Lower right abdomen", "Lower left abdomen", "Around the navel", "Left chest", "Center chest", "Forehead / temples", "Entire head", "Lower back", "Other location"],
-    },
-    hi: {
-      text: "दर्द या तकलीफ शरीर में ठीक किस जगह पर हो रही है?",
-      help: "सटीक जगह बताने से डॉक्टर को जांच में आसानी होती है।",
-      choices: ["पेट का ऊपरी हिस्सा (Upper abdomen)", "पेट का निचला दायां हिस्सा (Lower right abdomen)", "पेट का निचला बायां हिस्सा (Lower left abdomen)", "नाभि के आसपास (Around the navel)", "सीने के बाईं ओर (Left chest)", "सीने के बीच में (Center chest)", "माथा / कनपटी (Forehead / temples)", "पूरा सिर (Entire head)", "पीठ का निचला हिस्सा (Lower back)", "अन्य स्थान (Other location)"],
-    },
-    mr: {
-      text: "वेदना किंवा त्रास शरीरात नक्की कोणत्या ठिकाणी जाणवत आहे?",
-      help: "नक्की जागा सांगितल्याने डॉक्टरांना तपासणी करणे सोपे होते.",
-      choices: ["पोटाचा वरचा भाग (Upper abdomen)", "पोटाचा उजवा खालचा भाग (Lower right abdomen)", "पोटाचा डावा खालचा भाग (Lower left abdomen)", "बेंबीच्या भोवती (Around the navel)", "छातीचा डावा भाग (Left chest)", "छातीच्या मध्यभागी (Center chest)", "कपाळ / कानशिले (Forehead / temples)", "संपूर्ण डोके (Entire head)", "कमरेचा भाग (Lower back)", "इतर जागा (Other location)"],
-    },
-  },
-  current_medications: {
-    en: {
-      text: "Are you currently taking any prescription medicines, supplements, or regular tablets?",
-      help: "Include blood pressure, diabetes, thyroid, or daily vitamins.",
-      choices: ["No, none", "Yes, regularly", "Yes, occasionally"],
-    },
-    hi: {
-      text: "क्या आप वर्तमान में कोई नियमित दवाइयां, गोलियां या सप्लीमेंट्स ले रहे हैं?",
-      help: "बीपी, शुगर, थायरॉइड या दैनिक विटामिन शामिल करें।",
-      choices: ["नहीं, कोई नहीं (No, none)", "हां, नियमित रूप से (Yes, regularly)", "हां, कभी-कभी (Yes, occasionally)"],
-    },
-    mr: {
-      text: "तुम्ही सध्या काही नियमित औषधे, गोळ्या किंवा सप्लिमेंट्स घेत आहात का?",
-      help: "बीपी, मधुमेह, थायरॉईड किंवा नियमित जीवनसत्त्वे यांचा समावेश करा.",
-      choices: ["नाही, काहीही नाही (No, none)", "होय, नियमितपणे (Yes, regularly)", "होय, कधीतरी (Yes, occasionally)"],
-    },
-  },
-  has_allergies: {
-    en: {
-      text: "Do you have any known allergies to medicines, food, or other substances?",
-      help: "For example penicillin, sulfa, peanuts, contrast dye, dust.",
-      choices: ["No known allergies", "Yes, to medicines", "Yes, to food or other substances", "Not sure"],
-    },
-    hi: {
-      text: "क्या आपको किसी दवा, भोजन या अन्य पदार्थ से कोई एलर्जी है?",
-      help: "जैसे पेनिसिलिन, सल्फा, मूंगफली या धूल।",
-      choices: ["कोई ज्ञात एलर्जी नहीं (No known allergies)", "हां, दवाइयों से (Yes, to medicines)", "हां, भोजन या अन्य से (Yes, to food or other)", "पक्का पता नहीं (Not sure)"],
-    },
-    mr: {
-      text: "तुम्हाला कोणत्याही औषधाची, अन्नाची किंवा इतर गोष्टीची ॲलर्जी आहे का?",
-      help: "उदा. पेनिसिलिन, शेंगदाणे, धूळ इत्यादी.",
-      choices: ["माहित असलेली ॲलर्जी नाही (No known allergies)", "होय, औषधांची (Yes, to medicines)", "होय, अन्नाची किंवा इतर (Yes, to food or other)", "नक्की सांगता येत नाही (Not sure)"],
-    },
-  },
-  has_chronic_conditions: {
-    en: {
-      text: "Do you have any long-term or chronic medical conditions?",
-      help: "Hypertension, diabetes, asthma, thyroid disease, or heart conditions.",
-      choices: ["None", "Hypertension (High BP)", "Type 2 Diabetes", "Asthma", "Hypothyroidism", "Heart disease", "Other"],
-    },
-    hi: {
-      text: "क्या आपको कोई पुरानी या दीर्घकालिक बीमारी है?",
-      help: "जैसे बीपी, शुगर, अस्थमा, थायरॉइड या हृदय रोग।",
-      choices: ["कोई नहीं (None)", "हाई बीपी (High BP)", "डायबिटीज (Type 2 Diabetes)", "अस्थमा (Asthma)", "थायरॉइड (Hypothyroidism)", "हृदय रोग (Heart disease)", "अन्य (Other)"],
-    },
-    mr: {
-      text: "तुम्हाला कोणता जुनाट किंवा दीर्घकालीन आजार आहे का?",
-      help: "उदा. रक्तदाब, मधुमेह, दमा, थायरॉईड किंवा हृदयाचा आजार.",
-      choices: ["काहीही नाही (None)", "उच्च रक्तदाब (High BP)", "मधुमेह (Type 2 Diabetes)", "दमा (Asthma)", "थायरॉईड (Hypothyroidism)", "हृदयरोग (Heart disease)", "इतर (Other)"],
-    },
-  },
-};
+// Question fallback dictionary (generated from the backend; see i18n_questions.js)
+export { LOCAL_QUESTION_TRANSLATIONS };
 
 /**
  * Retrieve question translations with fallback

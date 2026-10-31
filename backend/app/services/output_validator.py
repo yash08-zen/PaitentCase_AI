@@ -279,3 +279,34 @@ def validate_treatment_summary(
         "patient_conflicts": conflicts,
         "label": "Reference information for the prescriber. Not a prescription.",
     }, notes
+
+
+def validate_conclusion(item: Dict[str, Any], index: EvidenceIndex) -> Tuple[Optional[Dict[str, Any]], List[str]]:
+    """The analyzed conclusion: safe wording, traceable numbers, resolvable key findings."""
+    text = (item.get("conclusion") or "").strip()
+    if not text:
+        return None, ["conclusion dropped: empty"]
+    if has_definitive_phrasing(text):
+        return None, ["conclusion dropped: definitive-diagnosis phrasing"]
+    if looks_injected(text):
+        return None, ["conclusion dropped: instruction-like text from the record"]
+    bad = index.untraceable_numbers(text, extra_allowed=["2", "4"])
+    if bad:
+        return None, [f"conclusion dropped: untraceable numbers {bad}"]
+    findings, dropped = _validate_evidence_list(item.get("key_findings"), index)
+    notes = [f"{dropped} key finding(s) removed: evidence not resolvable"] if dropped else []
+
+    def clean_list(values: Any) -> List[str]:
+        out = []
+        for v in values or []:
+            v = str(v).strip()
+            if v and not has_definitive_phrasing(v) and not looks_injected(v) and not index.untraceable_numbers(v):
+                out.append(v)
+        return out[:6]
+
+    return {
+        "conclusion": text,
+        "key_findings": findings,
+        "recommended_next_steps": clean_list(item.get("recommended_next_steps")),
+        "information_gaps": clean_list(item.get("information_gaps")),
+    }, notes

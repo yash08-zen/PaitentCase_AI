@@ -90,6 +90,11 @@ async def seed_questions():
                 exists.conditions = q_data.get("conditions")
                 exists.because = q_data.get("because")
                 exists.skip_why = q_data.get("skip_why")
+        # Retire questions that left the bank (rows stay for existing answers)
+        bank_keys = {q["key"] for q in QUESTION_BANK}
+        for q in (await db.scalars(select(Question))).all():
+            if q.key not in bank_keys and not q.key.startswith("ai_followup_"):
+                q.branching_rules = {"retired": True}
         await db.commit()
     print(f"[startup] Question bank synchronized ({len(QUESTION_BANK)} questions).")
 

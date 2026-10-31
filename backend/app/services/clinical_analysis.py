@@ -50,8 +50,8 @@ from app.services.llm.manager import llm_service
 from app.services.llm.prompts import SCHEMAS, SYSTEM_PROMPTS, wrap_case_data
 from app.services.medication_extraction import extract_medications_from_text
 from app.services.output_validator import (
-    EvidenceIndex, validate_consideration, validate_question, validate_summary_sections,
-    validate_treatment_summary, validate_trend_sentence,
+    EvidenceIndex, validate_conclusion, validate_consideration, validate_question,
+    validate_summary_sections, validate_treatment_summary, validate_trend_sentence,
 )
 
 # Conflict rules owned by this pipeline (recomputed on every run)
@@ -324,14 +324,30 @@ class ClinicalAnalysisService:
         catalogue = index.catalogue()
         patient_ctx = {"age": patient.age if patient else None, "sex": patient.gender if patient else None}
 
+        considerations: List[Dict[str, Any]] = []
         if run.llm_ok and catalogue:
-            await cls._considerations(run, index, catalogue, patient_ctx)
+            considerations = await cls._considerations(run, index, catalogue, patient_ctx)
         await progress(0.7)
         await cls._treatment_reference(run, answers, dx_names, lab_rows, med_names, allergies)
         await progress(0.8)
         await cls._trend_sentences(run, trends)
         await cls._summary(run, index, catalogue, summary_language)
+        missing = await cls._missing_required(db, answers)
         await cls._questions(run, index, catalogue, conflicts, answers)
+
+        # Rule-based overview (always available, also when the LLM is down)
+        run.notes["overview"] = {
+            "reason_for_visit": answers.get("chief_complaint"),
+            "urgency": red["overall_urgency"],
+            "red_flags": [a["title"] for a in red["alerts"]],
+            "abnormal_labs": [f"{l['test_name']} {l['value']:g} {l.get('unit') or ''} ({l['flag'].replace('_', ' ')})".replace("  ", " ")
+                              for l in lab_rows if l["flag"] not in ("normal", "range_not_available")],
+            "rule_conflicts": sorted({c["rule_id"] for c in conflicts}),
+            "answers": len(answers),
+            "documents": len(documents),
+            "missing_required": missing,
+        }
+        await cls._conclusion(run, index, catalogue, considerations, red, missing)
 
         # ── Finalize ─────────────────────────────────────────────────────────
         if job:
@@ -630,15 +646,18 @@ class ClinicalAnalysisService:
     async def _considerations(run: AnalysisRun, index: EvidenceIndex, catalogue: List[Dict[str, str]],
                               patient_ctx: Dict[str, Any]) -> None:
         out = await run.llm("disease_considerations", {"patient": patient_ctx, "evidence_catalogue": catalogue})
+        kept: List[Dict[str, Any]] = []
         if not out:
-            return
+            return kept
         for item in (out.get("considerations") or [])[:5]:
             cleaned, notes = validate_consideration(item, index)
             run.notes["validation"] += [f"consideration '{item.get('name', '')}': {n}" for n in notes]
             if cleaned:
+                kept.append({"name": cleaned["name"], "likelihood": cleaned["likelihood"]})
                 run.add_insight("disease_consideration", cleaned, {
                     "supporting": cleaned["supporting_findings"], "against": cleaned["findings_against"],
                 }, "disease_considerations")
+        return kept
 
     @staticmethod
     async def _treatment_reference(run: AnalysisRun, answers: Dict[str, str], dx_names: List[str],
@@ -728,8 +747,7 @@ class ClinicalAnalysisService:
                          conflicts: List[Dict[str, Any]], answers: Dict[str, str]) -> None:
         if not run.llm_ok:
             return
-        required = (await run.db.scalars(select(Question.key).where(Question.is_required.is_(True)))).all()
-        missing = [k for k in required if k not in answers][:6]
+        missing = await ClinicalAnalysisService._missing_required(run.db, answers)
         payload_conflicts = [{"field": c["field"], "description": c["description"],
                               "ref": f"conflict:{i}"} for i, c in enumerate(conflicts[:8])]
         out = await run.llm("questions_to_ask", {"evidence_catalogue": catalogue,
@@ -746,3 +764,36 @@ class ClinicalAnalysisService:
                                 {"reason": cleaned["reason"], "refs": cleaned["evidence_refs"]}, "questions_to_ask")
             else:
                 run.notes["validation"].append("a question to ask was dropped: no resolvable evidence")
+
+    @staticmethod
+    async def _missing_required(db: AsyncSession, answers: Dict[str, str]) -> List[str]:
+        required = (await db.scalars(select(Question.key).where(
+            Question.is_required.is_(True), ~Question.key.startswith("ai_followup_")))).all()
+        return [k for k in required if k not in answers][:6]
+
+    @staticmethod
+    async def _conclusion(run: AnalysisRun, index: EvidenceIndex, catalogue: List[Dict[str, str]],
+                          considerations: List[Dict[str, Any]], red: Dict[str, Any], missing: List[str]) -> None:
+        """Analyzed Conclusion from the patient's inputs (AI-written, code-verified, doctor-gated)."""
+        if not run.llm_ok or not catalogue:
+            return
+        out = await run.llm("analyzed_conclusion", {
+            "evidence_catalogue": catalogue,
+            "possible_considerations": considerations,
+            "urgency": red["overall_urgency"],
+            "red_flags": [a["title"] for a in red["alerts"]],
+            "missing": missing,
+        })
+        if not out:
+            return
+        cleaned, notes = validate_conclusion(out, index)
+        run.notes["validation"] += [f"analyzed conclusion: {n}" for n in notes]
+        if not cleaned:
+            return
+        cleaned.update({
+            "possible_considerations": considerations,  # validated list, not re-generated
+            "urgency": red["overall_urgency"],
+            "red_flags": [a["title"] for a in red["alerts"]],
+        })
+        run.add_insight("analyzed_conclusion", cleaned,
+                        {"key_findings": cleaned["key_findings"]}, "analyzed_conclusion")

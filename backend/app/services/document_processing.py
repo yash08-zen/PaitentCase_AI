@@ -268,6 +268,9 @@ async def _process_worker(document_id: int) -> None:
                     await detect_contradictions(doc.encounter_id, db)
                 except Exception as c_err:
                     print(f"[document_processing] Note: Discrepancy detection warning: {c_err}")
+                # New document text: analyse the case again without waiting for the doctor
+                from app.services.auto_analysis import request_analysis
+                request_analysis(doc.encounter_id, "document_processed", delay=0)
 
     except Exception as exc:
         print(f"[document_processing] Critical error processing document {document_id}: {exc}")

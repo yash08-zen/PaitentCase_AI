@@ -112,6 +112,12 @@ SCHEMAS: Dict[str, Dict[str, Any]] = {
         "questions": {"type": "array", "items": _obj({
             "question": _STR, "reason": _STR, "evidence_refs": _STR_LIST})},
     }),
+    "analyzed_conclusion": _obj({
+        "conclusion": _STR,
+        "key_findings": {"type": "array", "items": EVIDENCE_ITEM},
+        "recommended_next_steps": _STR_LIST,
+        "information_gaps": _STR_LIST,
+    }),
     "followup_questions": _obj({
         "followups": {"type": "array", "items": _obj({
             "text": _STR,
@@ -171,6 +177,16 @@ SYSTEM_PROMPTS: Dict[str, str] = {
         "the case data. Cite the refs that show each gap. " + NON_DIAGNOSTIC_RULE + " "
         + UNTRUSTED_DATA_RULE
     ),
+    "analyzed_conclusion": (
+        "Write an analyzed conclusion of this patient's case for the doctor, based on what the patient "
+        "reported and on the facts in the evidence catalogue. conclusion: 2 to 4 sentences that summarise "
+        "the presentation, state the rule-engine urgency given in the case data, and mention only the "
+        "possible considerations listed in case_data.possible_considerations, always as possibilities. "
+        "key_findings: the most important facts, each citing an evidence_ref from the catalogue with a "
+        "verbatim quote. recommended_next_steps: questions, examinations or tests the doctor could consider. "
+        "information_gaps: important information that is missing. Do not introduce numbers that are not in "
+        "the case data. " + NON_DIAGNOSTIC_RULE + " " + UNTRUSTED_DATA_RULE
+    ),
     "followup_questions": (
         "Propose up to 3 short follow-up interview questions to characterize the patient's "
         "chief complaint using the SOCRATES framework. Questions are shown to the patient: "
@@ -197,6 +213,7 @@ MAX_TOKENS: Dict[str, int] = {
     "trend_interpretation": 512,
     "case_summary": 4096,
     "questions_to_ask": 2048,
+    "analyzed_conclusion": 2048,
     "followup_questions": 1024,
     "handwriting_transcription": 4096,
 }

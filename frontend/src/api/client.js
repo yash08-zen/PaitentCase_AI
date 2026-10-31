@@ -755,6 +755,14 @@ export class ApiClient {
   }
 
   /**
+   * Doctor dashboard feed: latest automatic analysis (Analyzed Conclusion, urgency, state) per open case
+   * @param {number} [limit]
+   */
+  async getAIOverview(limit = 30) {
+    return this.get(`/api/analysis/overview?limit=${limit}`);
+  }
+
+  /**
    * List available guideline passages
    */
   async getAIGuidelines() {
